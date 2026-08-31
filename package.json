@@ -1,0 +1,26 @@
+{
+  "name": "epk-example-app",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Monorepo: Next.js + Expo example apps demonstrating expo-passkey and expo-passkey-liveness end-to-end.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@epk-example/web",
+    "dev:mobile": "npm run start --workspace=@epk-example/mobile",
+    "build:web": "npm run build --workspace=@epk-example/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "db:push": "npm run db:push --workspace=@epk-example/web",
+    "db:studio": "npm run db:studio --workspace=@epk-example/web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "tronweb": "^6.5.0"
+  }
+}
