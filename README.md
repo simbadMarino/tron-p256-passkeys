@@ -1,13 +1,14 @@
-# epk-example-app
+# TRON P256 PASSKEYS
 
 End-to-end reference monorepo for
+
 [`expo-passkey`](https://github.com/iosazee/expo-passkey) and
 [`expo-passkey-liveness`](https://github.com/iosazee/expo-passkey-liveness).
 Two apps, one backend.
 
-| Workspace | What it is | Demonstrates |
-|---|---|---|
-| [`apps/web`](./apps/web) | Next.js + Better Auth + Prisma | Server config wiring both plugins, browser WebAuthn ceremonies, debug surface, deploys to Vercel |
+| Workspace                     | What it is                      | Demonstrates                                                                                     |
+| ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [`apps/web`](./apps/web)       | Next.js + Better Auth + Prisma  | Server config wiring both plugins, browser WebAuthn ceremonies, debug surface, deploys to Vercel |
 | [`apps/mobile`](./apps/mobile) | Expo SDK 55 app (iOS + Android) | Native passkey ceremony, liveness-wrapper wiring, debug screen — built against the same backend |
 
 The web app exercises everything **except** the native camera (it uses
@@ -18,7 +19,7 @@ iProov on both server and native build when you want a real PAD ceremony.
 ## Layout
 
 ```
-epk-example-app/
+tron-p256-passkeys/
 ├── apps/
 │   ├── web/                # Next.js — server + browser
 │   └── mobile/             # Expo SDK 55 — iOS + Android
@@ -33,7 +34,7 @@ epk-example-app/
 
 ```bash
 git clone <this-repo>
-cd epk-example-app
+cd tron-p256-passkets
 npm install --legacy-peer-deps
 ```
 
@@ -55,7 +56,7 @@ npm run db:push                    # creates the Postgres schema
 npm run dev:web                    # http://localhost:3000
 ```
 
-Open <http://localhost:3000>, sign in at `/login` with email OTP, then
+Open [http://localhost:3000](http://localhost:3000), sign in at `/login` with email OTP, then
 register a passkey from `/dashboard`.
 
 ### 3. Run the mobile app
@@ -81,6 +82,7 @@ time you build, run `npm run ios` or `npm run android` from
 ### `apps/web` — server + browser
 
 **From `expo-passkey`:**
+
 - Cross-platform passkey registration via WebAuthn (Touch ID, Windows
   Hello, platform authenticator)
 - Sign-in via passkey assertion against the unified passkey table
@@ -89,6 +91,7 @@ time you build, run `npm run ios` or `npm run android` from
 - Serverless-friendly config (`cleanup.disableInterval`) for Vercel
 
 **From `expo-passkey-liveness`:**
+
 - Both plugins composed in one `betterAuth()` call (see
   [`apps/web/lib/auth.ts`](./apps/web/lib/auth.ts))
 - `/expo-passkey/liveness/session` and `/expo-passkey/liveness/verify`
@@ -167,6 +170,10 @@ npm run lint                       # eslint in every workspace
 
 - [`expo-passkey`](https://github.com/iosazee/expo-passkey) — cross-platform passkey plugin
 - [`expo-passkey-liveness`](https://github.com/iosazee/expo-passkey-liveness) — liveness / PAD extension
+
+## Credits
+
+This repo is based on https://github.com/iosazee/epk-example-app, thanks!
 
 ## License
 
