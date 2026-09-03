@@ -11,7 +11,7 @@ const REQUIRED = [
   "BETTER_AUTH_URL",
   "NEXT_PUBLIC_APP_URL",
   "RP_ID",
-  "RP_NAME",
+  "NEXT_PUBLIC_RP_NAME",
 ] as const;
 
 const OPTIONAL = [
@@ -21,6 +21,10 @@ const OPTIONAL = [
   "MOBILE_IOS_TEAM_ID",
   "MOBILE_ANDROID_PACKAGE",
   "MOBILE_ANDROID_CERT_SHA256",
+  // Must match `scheme` in apps/mobile/app.config.ts. The native client
+  // sends `<scheme>://` as its Origin, and Better Auth rejects any origin
+  // it has not been told to trust.
+  "MOBILE_APP_SCHEME",
 ] as const;
 
 type RequiredKey = (typeof REQUIRED)[number];

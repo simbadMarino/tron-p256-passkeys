@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Camera,
+  Cpu,
   Fingerprint,
   KeyRound,
   Layers,
@@ -30,13 +30,9 @@ export default function HomePage() {
       <header className="sticky top-0 z-20 border-b border-border-strong/70 bg-background/70 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1320px] items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-3">
-            <Sigil />
             <div className="flex items-baseline gap-2">
               <span className="data text-[13px] tracking-[0.18em] uppercase">
-                Expo Passkey Kit
-              </span>
-              <span className="data text-[11px] text-muted-foreground">
-                / v0.1.0-α
+                TRON P256 Passkey Demo
               </span>
             </div>
           </Link>
@@ -61,25 +57,6 @@ export default function HomePage() {
               Sequence
             </a>
           </nav>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="https://github.com/iosazee/epk-example-app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-9 items-center gap-2 rounded-full border border-border-strong px-3 text-[12px] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
-            >
-              <Github className="h-3.5 w-3.5" />
-              <span className="data tracking-[0.1em]">Source</span>
-            </Link>
-            <Link
-              href="/login"
-              className="group inline-flex h-9 items-center gap-2 rounded-full bg-phosphor px-4 text-[12px] font-medium text-phosphor-foreground transition-transform hover:-translate-y-px"
-            >
-              <span className="data tracking-[0.1em] uppercase">Enter demo</span>
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:rotate-45" />
-            </Link>
-          </div>
         </div>
       </header>
 
@@ -97,32 +74,31 @@ export default function HomePage() {
               </div>
 
               <h1 className="display text-[clamp(58px,9vw,140px)]">
-                <span className="block">Passkeys.</span>
+                <span className="block">TRON</span>
                 <span className="block display-italic text-phosphor">
-                  Face liveness.
+                  P256
                 </span>
-                <span className="block">End to end.</span>
+                <span className="block">end to end.</span>
               </h1>
 
               <div className="mt-10 grid max-w-2xl gap-5 text-[15.5px] leading-relaxed text-muted-foreground">
                 <p>
                   A reference deployment of{" "}
                   <code className="data rounded-sm bg-paper px-1.5 py-0.5 text-foreground">
-                    expo-passkey
+                    TRON P256VERIFY precompile
                   </code>{" "}
                   &amp;{" "}
                   <code className="data rounded-sm bg-paper px-1.5 py-0.5 text-foreground">
-                    expo-passkey-liveness
+                    passkeys
                   </code>
                   . One Better Auth backend, two clients — web and native — both
-                  running real WebAuthn ceremonies gated by face PAD.
+                  running real WebAuthn ceremonies.
                 </p>
                 <p>
-                  No passwords are ever stored. The audit slice is written to{" "}
-                  <code className="data text-foreground">
-                    passkey.metadata.liveness
-                  </code>
-                  .
+                  No passwords are ever stored. The same credential that signs
+                  you in also signs operations for a{" "}
+                  <code className="data text-foreground">P256SmartWallet</code>{" "}
+                  on TRON.
                 </p>
               </div>
 
@@ -139,14 +115,14 @@ export default function HomePage() {
                   </span>
                 </Link>
                 <Link
-                  href="https://github.com/iosazee/epk-example-app"
+                  href="https://github.com/simbadMarino/tron-p256-passkeys"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-12 items-center gap-2 rounded-full border border-border-strong px-5 text-[13px] hover:border-foreground"
                 >
                   <Github className="h-4 w-4" />
                   <span className="data tracking-[0.06em]">
-                    iosazee / epk-example-app
+                    simbadMarino / tron-p256-passkeys
                   </span>
                 </Link>
               </div>
@@ -166,7 +142,7 @@ export default function HomePage() {
             <Stat k="01" label="Backend" value="Next.js + Better Auth" sub="single source of truth" />
             <Stat k="02" label="Clients" value="Web · iOS · Android" sub="one passkey table" />
             <Stat k="03" label="Crypto" value="WebAuthn / FIDO2" sub="platform authenticators" />
-            <Stat k="04" label="PAD" value="ISO 30107 Level 1" sub="auto-pass demo provider" />
+            <Stat k="04" label="On-chain" value="P256VERIFY · 0x100" sub="TRON Nile" />
           </div>
         </div>
       </section>
@@ -205,14 +181,16 @@ export default function HomePage() {
             />
             <Primitive
               n="02"
-              icon={<Camera className="h-4 w-4" />}
-              title="Face liveness gating"
+              icon={<Cpu className="h-4 w-4" />}
+              title="Verified on-chain"
               body={
                 <>
-                  <code className="data">expo-passkey-liveness</code> validates
-                  a signed liveness token on register &amp; authenticate. Audit
-                  slice lands on{" "}
-                  <code className="data">passkey.metadata.liveness</code>.
+                  A passkey is a secp256r1 keypair, so its assertions verify
+                  against the <code className="data">P256VERIFY</code>{" "}
+                  precompile at <code className="data">0x100</code>. Export{" "}
+                  <code className="data">r</code>, <code className="data">s</code>,{" "}
+                  <code className="data">x</code>, <code className="data">y</code>{" "}
+                  from <code className="data">/p256</code>.
                 </>
               }
             />
@@ -231,8 +209,8 @@ export default function HomePage() {
             <Primitive
               n="05"
               icon={<Smartphone className="h-4 w-4" />}
-              title="Real device camera"
-              body="The web demo uses an auto-passing provider for determinism. The Expo app runs the actual PAD ceremony against the same backend."
+              title="Same signer, both clients"
+              body="Browser and Expo native share one encoding package, so the operation digest a wallet contract commits to is computed by a single implementation rather than two that must agree."
             />
             <Primitive
               n="06"
@@ -297,22 +275,29 @@ export default function HomePage() {
             />
             <Phase
               n="02"
-              cmd="POST /expo-passkey/liveness/verify"
-              title="Run the liveness check"
+              cmd="navigator.credentials.create()"
+              title="WebAuthn ceremony"
               body={
                 <>
                   Hit <strong className="text-foreground">Register passkey</strong>.
-                  The provider returns a signed liveness token; the audit slice
-                  lands on{" "}
-                  <code className="data">passkey.metadata.liveness</code>.
+                  Your browser runs the ceremony — Touch ID, Windows Hello or a
+                  security key — and the credential is bound to this origin.
                 </>
               }
             />
             <Phase
               n="03"
-              cmd="navigator.credentials.create()"
-              title="WebAuthn ceremony"
-              body="Your browser runs the WebAuthn registration ceremony — Touch ID, Windows Hello, or a security key. The credential is stored alongside the liveness audit."
+              cmd="GET /p256"
+              title="Export the signature"
+              body={
+                <>
+                  Sign an operation digest and take{" "}
+                  <code className="data">r</code>, <code className="data">s</code>,{" "}
+                  <code className="data">x</code>, <code className="data">y</code>{" "}
+                  to a wallet contract that verifies them via{" "}
+                  <code className="data">P256VERIFY</code>.
+                </>
+              }
             />
             <Phase
               n="04"
@@ -344,7 +329,7 @@ export default function HomePage() {
                 "Better Auth",
                 "Prisma + Postgres",
                 "WebAuthn / FIDO2",
-                "ISO 30107 PAD",
+                "TRON P256VERIFY",
               ].map((b) => (
                 <span key={b} className="data tracking-[0.04em]">
                   {b}
@@ -359,18 +344,7 @@ export default function HomePage() {
       <footer className="border-t border-border-strong/70 bg-paper/40">
         <div className="mx-auto flex max-w-[1320px] flex-col gap-6 px-6 py-10 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <Sigil />
-            <span className="data text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              MIT · built by{" "}
-              <Link
-                href="https://github.com/iosazee"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground hover:text-phosphor"
-              >
-                @iosazee
-              </Link>
-            </span>
+
           </div>
           <div className="flex items-center gap-5">
             <Link
@@ -381,15 +355,7 @@ export default function HomePage() {
             >
               expo-passkey ↗
             </Link>
-            <Link
-              href="https://github.com/iosazee/expo-passkey-liveness"
-              className="data text-[12px] text-muted-foreground hover:text-foreground"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              expo-passkey-liveness ↗
-            </Link>
-          </div>
+                      </div>
         </div>
       </footer>
     </div>
@@ -442,26 +408,25 @@ function TerminalCard() {
             <Line muted body="→ 200 OK · otp_sent=true" />
             <Line prompt="$" body="echo $OTP | verify" />
             <Line muted body="→ session.created · uid=usr_4f1c…" />
-            <Line prompt="$" body="passkey.register --liveness=auto" />
+            <Line prompt="$" body="passkey.register" />
             <Out>
-              <span className="text-muted-foreground">phase 1/3</span>{" "}
-              <span className="text-phosphor">liveness ✓</span>{" "}
-              <span className="text-muted-foreground">
-                · score 0.97 · pad L1
-              </span>
-            </Out>
-            <Out>
-              <span className="text-muted-foreground">phase 2/3</span>{" "}
+              <span className="text-muted-foreground">phase 1/2</span>{" "}
               <span className="text-phosphor">credentials.create() ✓</span>
             </Out>
             <Out>
-              <span className="text-muted-foreground">phase 3/3</span>{" "}
+              <span className="text-muted-foreground">phase 2/2</span>{" "}
               <span className="text-phosphor">stored ✓</span>{" "}
               <span className="text-muted-foreground">
                 · platform=mac · alg=ES256
               </span>
             </Out>
-            <Line muted body="→ passkey.metadata.liveness written" />
+            <Line prompt="$" body="p256.sign --operation-digest" />
+            <Out>
+              <span className="text-phosphor">P256VERIFY ✓</span>{" "}
+              <span className="text-muted-foreground">
+                · 0x100 · nile
+              </span>
+            </Out>
             <div className="pt-2">
               <span className="text-phosphor">$ </span>
               <span className="caret text-foreground" />

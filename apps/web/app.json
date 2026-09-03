@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.anonymous.tronp256passkeyweb"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.tronp256passkeyweb"
+  }
+}

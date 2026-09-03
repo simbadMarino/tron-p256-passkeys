@@ -1,0 +1,20 @@
+diff --git a/node_modules/expo-passkey-liveness/android/src/main/java/expo/modules/passkeyliveness/LivenessExceptions.kt b/node_modules/expo-passkey-liveness/android/src/main/java/expo/modules/passkeyliveness/LivenessExceptions.kt
+index 5e44ed2..a3f0d96 100644
+--- a/node_modules/expo-passkey-liveness/android/src/main/java/expo/modules/passkeyliveness/LivenessExceptions.kt
++++ b/node_modules/expo-passkey-liveness/android/src/main/java/expo/modules/passkeyliveness/LivenessExceptions.kt
+@@ -2,9 +2,12 @@ package expo.modules.passkeyliveness
+ 
+ import expo.modules.kotlin.exception.CodedException
+ 
+-class LivenessException(val errorCode: String, message: String) : CodedException(message) {
+-  override fun getCode(): String = errorCode
+-}
++// expo-modules-core 55 replaced the overridable `getCode()` with a `val code`
++// plus a (code, message, cause) constructor, so the code is passed up rather
++// than overridden. `errorCode` stays a property because
++// ExpoPasskeyLivenessModule references `err.errorCode` when rejecting.
++class LivenessException(val errorCode: String, message: String) :
++  CodedException(errorCode, message, null)
+ 
+ object LivenessErrorCodes {
+   const val NOT_SUPPORTED = "liveness_not_supported"

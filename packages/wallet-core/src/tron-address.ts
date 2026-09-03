@@ -3,9 +3,7 @@
  *
  * A TRON address is three encodings of the same 20 bytes:
  *
- *   base58    TNJkNz41sh84p3b4HirJc4bNaNgHLgNRr4
- *   TRON hex  41 87539b11811558478318d4187e8fe8bdc201d5ad     (21 bytes)
- *   EVM       0x 87539b11811558478318d4187e8fe8bdc201d5ad     (20 bytes)
+ *   base58    TGJDgV9zs8Fpq3xFDncDyJsKUkFNUk2JgJ
  *
  * Solidity's `address` type is the 20-byte value; the `41` prefix and the
  * base58 wrapper are packaging. Anything that hashes an address — such as

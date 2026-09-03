@@ -1,5 +1,5 @@
 {
-  "name": "epk-example-app",
+  "name": "tron-p256-passkey-app",
   "version": "0.0.1",
   "private": true,
   "description": "Monorepo: Next.js + Expo example apps demonstrating expo-passkey and expo-passkey-liveness end-to-end.",
@@ -8,13 +8,14 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:web": "npm run dev --workspace=@epk-example/web",
-    "dev:mobile": "npm run start --workspace=@epk-example/mobile",
-    "build:web": "npm run build --workspace=@epk-example/web",
+    "dev:web": "npm run dev --workspace=@tron-p256-passkey/web",
+    "dev:mobile": "npm run start --workspace=@tron-p256-passkey/mobile",
+    "build:web": "npm run build --workspace=@tron-p256-passkey/web",
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
-    "db:push": "npm run db:push --workspace=@epk-example/web",
-    "db:studio": "npm run db:studio --workspace=@epk-example/web"
+    "db:push": "npm run db:push --workspace=@tron-p256-passkey/web",
+    "db:studio": "npm run db:studio --workspace=@tron-p256-passkey/web",
+    "postinstall": "patch-package"
   },
   "engines": {
     "node": ">=20"
@@ -22,5 +23,8 @@
   "license": "MIT",
   "dependencies": {
     "tronweb": "^6.5.0"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
   }
 }

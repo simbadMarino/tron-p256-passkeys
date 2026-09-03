@@ -30,9 +30,9 @@ type Mode = "operation" | "digest";
  * the wallet needing to hold any TRX.
  */
 const DEFAULT_OP = {
-  wallet: "TNJkNz41sh84p3b4HirJc4bNaNgHLgNRr4",
+  wallet: "TGJDgV9zs8Fpq3xFDncDyJsKUkFNUk2JgJ",
   chainId: "3448148188", // TRON Nile
-  destination: "TMpbPJvF2f9gkK6CmWcSRrvJ4cB96qbLie",
+  destination: "TJDMQzjJSh5eC8WezVtnDXDuWXAwjV23eF",
   value: "0",
   data: "0x",
   nonce: "0",

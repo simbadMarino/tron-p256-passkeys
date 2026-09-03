@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 
 /**
  * Read-only debug endpoint: returns the persisted passkey rows for
- * the current session, including the `metadata.liveness` audit slice
- * injected by the liveness enforcement hook. Demo purposes only.
+ * the current session. Demo purposes only.
  */
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers });

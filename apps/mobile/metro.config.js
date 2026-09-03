@@ -16,7 +16,16 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
-// 3. Force Metro to resolve through the root + app's own node_modules only
-config.resolver.disableHierarchicalLookup = true;
+// 3. Keep hierarchical lookup ON (false is also Metro's default).
+//
+// Setting this to true restricts resolution to nodeModulesPaths above and
+// stops Metro looking inside a package's own node_modules. That breaks any
+// dependency relying on a nested copy to resolve a version conflict — here,
+// react-native-reanimated needs semver@7 for "semver/functions/satisfies",
+// while the hoisted root copy is semver@6, which has no functions/ directory
+// at all. Watching the workspace and listing nodeModulesPaths (1 and 2) is
+// what makes the monorepo resolve; this line is only a restriction, and an
+// unnecessary one.
+config.resolver.disableHierarchicalLookup = false;
 
 module.exports = config;

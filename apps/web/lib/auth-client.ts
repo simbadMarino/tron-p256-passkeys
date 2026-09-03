@@ -120,12 +120,10 @@ type PasskeyClientShape = typeof authClient & {
     rpId: string;
     rpName: string;
     metadata?: Record<string, unknown>;
-    livenessToken?: string;
   }) => Promise<AuthResult>;
   authenticateWithPasskey: (input?: {
     rpId?: string;
     userVerification?: "required" | "preferred" | "discouraged";
-    livenessToken?: string;
   }) => Promise<AuthResult>;
   isPasskeySupported?: () => Promise<boolean>;
 };

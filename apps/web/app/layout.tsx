@@ -24,9 +24,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EPK · passkeys + face liveness, end to end",
+  title: "TRON P256 Passkeys Demo",
   description:
-    "Reference monorepo for expo-passkey and expo-passkey-liveness — WebAuthn ceremonies on a single Better Auth backend, gated by face PAD.",
+    "Reference monorepo for TRON P256 utilizing psskeys for web, Android and iOS.",
 };
 
 export default function RootLayout({

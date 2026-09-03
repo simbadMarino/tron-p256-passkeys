@@ -19,8 +19,6 @@ import {
   refreshSession,
   signIn,
 } from "@/lib/auth-client";
-import { getRememberedUserId } from "@/lib/last-user";
-import { verifyLivenessWeb } from "@/lib/liveness-web";
 
 type OtpStep = "email" | "code";
 type Mode = "passkey" | "otp";
@@ -68,9 +66,9 @@ export default function LoginPage() {
               your device.
             </h2>
             <p className="max-w-md text-[14.5px] leading-relaxed text-muted-foreground">
-              A liveness token is minted and bound to your origin, then verified
-              alongside the WebAuthn assertion. The server only sees that the
-              key holder is present — not the key itself.
+              The private key is generated and held by your device, and never
+              leaves it. The server only ever sees a signature it can verify
+              against the public half.
             </p>
 
             <div className="data flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -154,10 +152,10 @@ export default function LoginPage() {
           <footer className="border-t border-border-strong/60 px-6 py-5 lg:px-12">
             <div className="flex items-center justify-between">
               <p className="data text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                mit · iosazee / epk-example-app
+                mit · simbadMarino / tron-p256-passkeys
               </p>
               <Link
-                href="https://github.com/iosazee/epk-example-app"
+                href="https://github.com/simbadMarino/tron-p256-passkeys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="data text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
@@ -218,27 +216,8 @@ function PasskeyForm({ onSuccess }: { onSuccess: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      // Read at click time rather than during render — keeps localStorage
-      // out of the server-rendered markup.
-      const userId = getRememberedUserId();
-      if (!userId) {
-        setError(
-          "This browser has no passkey bound yet. Sign in with an email code once, then register a passkey from the dashboard.",
-        );
-        return;
-      }
-
-      const live = await verifyLivenessWeb({
-        challenge: "authentication",
-        userId,
-      });
-      if (live.error || !live.data) {
-        setError(live.error?.message ?? "Liveness check failed");
-        return;
-      }
-      const r = await authenticateWithPasskey({
-        livenessToken: live.data.livenessToken,
-      });
+      // No identifier needed: the ceremony uses a discoverable credential.
+      const r = await authenticateWithPasskey();
       if (r.error) {
         setError(r.error.message || "Sign in failed");
         return;
@@ -267,7 +246,7 @@ function PasskeyForm({ onSuccess }: { onSuccess: () => void }) {
     <div className="space-y-5">
       <p className="text-[13.5px] leading-relaxed text-muted-foreground">
         Use Touch ID, Windows Hello, or any platform authenticator already bound
-        to this site. Liveness is verified as part of the ceremony.
+        to this site.
       </p>
 
       <button

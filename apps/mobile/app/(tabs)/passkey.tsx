@@ -1,8 +1,3 @@
-import {
-  authenticateWithPasskeyAndLiveness,
-  registerPasskeyWithLiveness,
-  verifyLiveness,
-} from "expo-passkey-liveness/native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,11 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   authClient,
   authenticateWithPasskey,
+  refreshSession,
   registerPasskey,
   signOut,
   useSession,
 } from "@/lib/auth-client";
-import { makeLivenessFetcher } from "@/lib/api";
+import { env } from "@/lib/env";
 
 type LogLevel = "info" | "ok" | "err";
 type Log = { ts: string; text: string; level: LogLevel };
@@ -24,10 +20,6 @@ export default function PasskeyScreen() {
   const user = session.data?.user ?? null;
   const [logs, setLogs] = useState<Log[]>([]);
   const [busy, setBusy] = useState(false);
-
-  const fetcher = makeLivenessFetcher(
-    authClient as unknown as Parameters<typeof makeLivenessFetcher>[0]
-  );
 
   function log(text: string, level: LogLevel = "info") {
     setLogs((prev) =>
@@ -39,19 +31,18 @@ export default function PasskeyScreen() {
     if (!user) return;
     setBusy(true);
     try {
-      log("starting registerPasskeyWithLiveness…");
-      const r = await registerPasskeyWithLiveness(
-        {
-          challenge: "registration",
-          userName: user.email,
-          displayName: user.name ?? user.email,
-        },
-        { fetcher, registerPasskey }
-      );
+      log("starting registerPasskey…");
+      const r = await registerPasskey({
+        userId: user.id,
+        userName: user.email,
+        displayName: user.name ?? user.email,
+        rpId: env.rpId,
+        rpName: env.rpName,
+      });
       if (r.error) {
         log(`register failed: ${r.error.message}`, "err");
       } else {
-        log("passkey registered with liveness ✓", "ok");
+        log("passkey registered ✓", "ok");
       }
     } catch (e) {
       log(`thrown: ${e instanceof Error ? e.message : String(e)}`, "err");
@@ -63,15 +54,20 @@ export default function PasskeyScreen() {
   async function handleAuthenticate() {
     setBusy(true);
     try {
-      log("starting authenticateWithPasskeyAndLiveness…");
-      const r = await authenticateWithPasskeyAndLiveness(
-        { challenge: "authentication" },
-        { fetcher, authenticateWithPasskey }
-      );
+      log("starting authenticateWithPasskey…");
+      const r = await authenticateWithPasskey({ rpId: env.rpId });
       if (r.error) {
         log(`authenticate failed: ${r.error.message}`, "err");
       } else {
-        log("authenticated with passkey + liveness ✓", "ok");
+        // Better Auth does not revalidate the session store for
+        // /expo-passkey/authenticate, so without this the screen reports
+        // success while useSession() still holds the previous session.
+        log(
+          (await refreshSession())
+            ? "authenticated with passkey ✓"
+            : "authenticated, but no session was stored",
+          "ok",
+        );
       }
     } catch (e) {
       log(`thrown: ${e instanceof Error ? e.message : String(e)}`, "err");
@@ -80,22 +76,6 @@ export default function PasskeyScreen() {
     }
   }
 
-  async function handleLivenessOnly() {
-    setBusy(true);
-    try {
-      log("running standalone verifyLiveness…");
-      const r = await verifyLiveness({ challenge: "step-up" }, { fetcher });
-      if (r.error || !r.data) {
-        log(`liveness failed: ${r.error?.message ?? "no data"}`, "err");
-      } else {
-        log(`liveness token issued (score ${r.data.score})`, "ok");
-      }
-    } catch (e) {
-      log(`thrown: ${e instanceof Error ? e.message : String(e)}`, "err");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function handleSignOut() {
     setBusy(true);
@@ -109,14 +89,13 @@ export default function PasskeyScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.heading}>Passkey + Liveness</Text>
+        <Text style={styles.heading}>Passkey</Text>
         <Text style={styles.subheading}>Signed in as {user?.email}</Text>
       </View>
 
       <View style={styles.actions}>
-        <Action label="Register passkey + liveness" onPress={handleRegister} busy={busy} primary />
-        <Action label="Sign in with passkey + liveness" onPress={handleAuthenticate} busy={busy} />
-        <Action label="Standalone liveness (step-up)" onPress={handleLivenessOnly} busy={busy} />
+        <Action label="Register passkey" onPress={handleRegister} busy={busy} primary />
+        <Action label="Sign in with passkey" onPress={handleAuthenticate} busy={busy} />
         <Action label="Sign out" onPress={handleSignOut} busy={busy} subtle />
       </View>
 

@@ -25,7 +25,6 @@ model User {
   sessions      Session[]
   accounts      Account[]
   passkeys      Passkey[]
-  livenessSessions PasskeyLivenessSession[]
 }
 
 model Session {
@@ -94,21 +93,4 @@ model PasskeyChallenge {
   createdAt            String
   expiresAt            String
   registrationOptions  String?
-}
-
-// ------- expo-passkey-liveness -------
-
-model PasskeyLivenessSession {
-  id                  String  @id
-  userId              String
-  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider            String
-  providerSessionId   String
-  challenge           String
-  status              String  @default("pending")
-  score               Float?
-  registeredModality  String?
-  createdAt           String
-  expiresAt           String
-  consumedAt          String?
 }

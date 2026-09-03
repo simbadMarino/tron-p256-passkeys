@@ -1,6 +1,3 @@
-import {
-  authenticateWithPasskeyAndLiveness,
-} from "expo-passkey-liveness/native";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -18,10 +15,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   authClient,
   authenticateWithPasskey,
+  refreshSession,
   emailOtp,
   signIn,
 } from "@/lib/auth-client";
-import { makeLivenessFetcher } from "@/lib/api";
+import { env } from "@/lib/env";
 
 type Mode = "passkey" | "otp";
 type OtpStep = "email" | "code";
@@ -35,7 +33,7 @@ export default function SignInScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
       >
-        <Text style={styles.heading}>EPK Example</Text>
+        <Text style={styles.heading}>TRON Passkeys</Text>
         <Text style={styles.subheading}>
           Passwordless. Passkey first, email code as fallback.
         </Text>
@@ -55,20 +53,19 @@ function PasskeyTab() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetcher = makeLivenessFetcher(
-    authClient as unknown as Parameters<typeof makeLivenessFetcher>[0]
-  );
-
   async function handleSignIn() {
     setBusy(true);
     setError(null);
     try {
-      const r = await authenticateWithPasskeyAndLiveness(
-        { challenge: "authentication" },
-        { fetcher, authenticateWithPasskey }
-      );
+      const r = await authenticateWithPasskey({ rpId: env.rpId });
       if (r.error) {
-        setError(r.error.message);
+        setError(r.error.message ?? "Passkey sign-in failed");
+        return;
+      }
+      // Same staleness as the OTP path — /expo-passkey/authenticate is not on
+      // Better Auth's revalidation list either.
+      if (!(await refreshSession())) {
+        setError("Passkey verified, but no session was stored.");
         return;
       }
       router.replace("/(tabs)/passkey");
@@ -82,8 +79,7 @@ function PasskeyTab() {
   return (
     <View>
       <Text style={styles.bodyText}>
-        Use Face ID or fingerprint to sign in. Liveness is verified as part of
-        the ceremony.
+        Use Face ID or fingerprint to sign and approve SmartWallets transfers
       </Text>
       <Pressable
         style={[styles.button, busy && styles.buttonBusy]}
@@ -136,6 +132,13 @@ function OtpTab() {
       const r = await signIn.emailOtp({ email, otp });
       if (r.error) {
         setError(r.error.message ?? r.error.code ?? "Invalid code");
+        return;
+      }
+      // The tabs layout gates on useSession(), which Better Auth does not
+      // revalidate for /sign-in/email-otp. Navigating now reads a stale
+      // store and bounces back here.
+      if (!(await refreshSession())) {
+        setError("Signed in, but no session was stored. Check the auth server.");
         return;
       }
       router.replace("/(tabs)/passkey");

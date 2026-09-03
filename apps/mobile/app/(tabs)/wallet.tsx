@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -18,6 +19,8 @@ import {
   type P256Assertion,
 } from "@tron-p256/wallet-core";
 
+import { fetchP256Keys, type P256KeyRow } from "@/lib/api";
+import { env } from "@/lib/env";
 import { signDigestWithPasskeyNative } from "@/lib/passkey-p256-native";
 
 /**
@@ -29,17 +32,20 @@ import { signDigestWithPasskeyNative } from "@/lib/passkey-p256-native";
  */
 
 const DEFAULTS = {
-  wallet: "TNJkNz41sh84p3b4HirJc4bNaNgHLgNRr4",
+  wallet: "TGJDgV9zs8Fpq3xFDncDyJsKUkFNUk2JgJ",
   chainId: "3448148188", // TRON Nile
-  destination: "TMpbPJvF2f9gkK6CmWcSRrvJ4cB96qbLie",
+  destination: "TJDMQzjJSh5eC8WezVtnDXDuWXAwjV23eF",
   value: "0",
   data: "0x",
   nonce: "0",
   deadline: "4000000000",
   // Must match the rpId the credential was registered under — a domain, no
-  // scheme and no port. A credential registered on another rpId will not be
-  // offered here at all.
-  rpId: "localhost",
+  // scheme and no port. A credential registered on another rpId is not just
+  // rejected, it is never offered: Credential Manager finds nothing to show
+  // and collapses to a bare "Sign in another way" sheet, which reads as "the
+  // passkey prompt never appeared". So this tracks the same env var the
+  // Passkey tab registers with rather than carrying its own default.
+  rpId: env.rpId,
 };
 
 type Operation = typeof DEFAULTS;
@@ -50,6 +56,35 @@ export default function WalletScreen() {
   const [signedOp, setSignedOp] = useState<Operation | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keys, setKeys] = useState<P256KeyRow[]>([]);
+  const [keysError, setKeysError] = useState<string | null>(null);
+
+  const loadKeys = useCallback(async () => {
+    try {
+      setKeys(await fetchP256Keys());
+      setKeysError(null);
+    } catch (e) {
+      setKeysError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  // On focus rather than on mount: the tab bar keeps this screen mounted, so
+  // a passkey registered on the Passkey tab would otherwise never show up
+  // here until the app restarted.
+  useFocusEffect(
+    useCallback(() => {
+      void loadKeys();
+    }, [loadKeys]),
+  );
+
+  /**
+   * The public key belongs to whichever credential the selector actually
+   * used, which the user picks during the ceremony — so it is resolved from
+   * the assertion's credentialId, not from "the first registered key".
+   */
+  const signingKey = assertion
+    ? (keys.find((k) => k.credentialId === assertion.credentialId) ?? null)
+    : null;
 
   const digest = useMemo(() => {
     try {
@@ -70,29 +105,52 @@ export default function WalletScreen() {
     }
   }, [op]);
 
-  /** Built from the signed operation, so later edits cannot desync it. */
-  const parameter = useMemo(() => {
+  /**
+   * Built from the operation that was signed rather than the current form
+   * values, so editing a field after signing cannot produce calldata that
+   * disagrees with the assertion.
+   */
+  const submission = useMemo(() => {
     if (!assertion || !signedOp) return null;
     try {
-      return encodeExecuteArgs({
-        destination: base58ToEvmAddress(signedOp.destination),
-        value: BigInt(signedOp.value),
-        data: signedOp.data,
-        nonce: BigInt(signedOp.nonce),
-        deadline: BigInt(signedOp.deadline),
-        auth: {
-          authenticatorData: assertion.authenticatorData,
-          clientDataJSON: assertion.clientDataJSON,
-          challengeIndex: assertion.challengeIndex,
-          typeIndex: assertion.typeIndex,
-          r: assertion.r,
-          s: assertion.s,
-        },
+      const auth = {
+        authenticatorData: assertion.authenticatorData,
+        clientDataJSON: assertion.clientDataJSON,
+        challengeIndex: assertion.challengeIndex,
+        typeIndex: assertion.typeIndex,
+        r: assertion.r,
+        s: assertion.s,
+      };
+      return {
+        // JSON.stringify does the escaping that hand-pasting gets wrong —
+        // clientDataJSON is itself JSON, and its inner quotes have to survive
+        // the paste into a struct field.
+        tuple: JSON.stringify([
+          auth.authenticatorData,
+          auth.clientDataJSON,
+          auth.challengeIndex,
+          auth.typeIndex,
+          auth.r,
+          auth.s,
+        ]),
         // TRON's `parameter` field takes bare hex; a leading 0x is rejected
         // by the node's decoder.
-      }).replace(/^0x/, "");
-    } catch {
-      return null;
+        parameter: encodeExecuteArgs({
+          destination: base58ToEvmAddress(signedOp.destination),
+          value: BigInt(signedOp.value),
+          data: signedOp.data,
+          nonce: BigInt(signedOp.nonce),
+          deadline: BigInt(signedOp.deadline),
+          auth,
+        }).replace(/^0x/, ""),
+        error: null as string | null,
+      };
+    } catch (e) {
+      return {
+        tuple: null,
+        parameter: null,
+        error: e instanceof Error ? e.message : String(e),
+      };
     }
   }, [assertion, signedOp]);
 
@@ -174,6 +232,14 @@ export default function WalletScreen() {
 
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
+        {/* A failure here is not fatal — signing still works, only the public
+            key is unavailable — so it reads as a warning rather than an error. */}
+        {keysError ? (
+          <Text style={styles.hint}>
+            Could not load public keys: {keysError}
+          </Text>
+        ) : null}
+
         {assertion ? (
           <View style={styles.panel}>
             <Text style={styles.label}>custody</Text>
@@ -183,20 +249,61 @@ export default function WalletScreen() {
               {assertion.flags.userVerified ? 1 : 0}
             </Text>
 
+            <Text style={[styles.label, styles.spaced]}>credentialId</Text>
+            <Text style={styles.mono} selectable>
+              {assertion.credentialId}
+            </Text>
+
+            <Text style={[styles.label, styles.spaced]}>publicKeyX</Text>
+            <Text style={styles.mono} selectable>
+              {signingKey?.x ?? "— unknown credential"}
+            </Text>
+            <Text style={[styles.label, styles.spaced]}>publicKeyY</Text>
+            <Text style={styles.mono} selectable>
+              {signingKey?.y ?? "— unknown credential"}
+            </Text>
+            {signingKey?.error ? (
+              <Text style={styles.err}>{signingKey.error}</Text>
+            ) : null}
+            {!signingKey && !keysError ? (
+              <Text style={styles.hint}>
+                No registered key matches this credential. It was created
+                against a different account or server than the one this app is
+                signed in to.
+              </Text>
+            ) : null}
+
             <Text style={[styles.label, styles.spaced]}>r</Text>
-            <Text style={styles.mono}>{assertion.r}</Text>
+            <Text style={styles.mono} selectable>
+              {assertion.r}
+            </Text>
             <Text style={[styles.label, styles.spaced]}>s</Text>
-            <Text style={styles.mono}>{assertion.s}</Text>
+            <Text style={styles.mono} selectable>
+              {assertion.s}
+            </Text>
+
+            <Text style={[styles.label, styles.spaced]}>
+              auth tuple · paste into a struct field
+            </Text>
+            <Text style={styles.mono} selectable>
+              {submission?.tuple ?? "—"}
+            </Text>
 
             <Text style={[styles.label, styles.spaced]}>function selector</Text>
-            <Text style={styles.mono}>{EXECUTE_SIGNATURE}</Text>
+            <Text style={styles.mono} selectable>
+              {EXECUTE_SIGNATURE}
+            </Text>
 
             <Text style={[styles.label, styles.spaced]}>
               parameter · bare hex, no 0x
             </Text>
             <Text style={styles.mono} selectable>
-              {parameter ?? "—"}
+              {submission?.parameter ?? "—"}
             </Text>
+
+            {submission?.error ? (
+              <Text style={styles.err}>{submission.error}</Text>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
@@ -245,4 +352,5 @@ const styles = StyleSheet.create({
   buttonOff: { opacity: 0.5 },
   buttonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   err: { color: "#f87171", fontSize: 13, lineHeight: 18 },
+  hint: { color: "#a1a1aa", fontSize: 12, lineHeight: 17, marginTop: 6 },
 });

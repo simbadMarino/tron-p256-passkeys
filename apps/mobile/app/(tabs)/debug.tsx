@@ -2,16 +2,12 @@ import { useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import {
-  fetchLivenessSessions,
-  fetchPasskeys,
-  type LivenessSessionDebugRow,
-  type PasskeyDebugRow,
-} from "@/lib/api";
+import { fetchPasskeys, type PasskeyDebugRow } from "@/lib/api";
+import { collectPasskeyGates, type Gate } from "@/lib/passkey-diagnostics";
 
 export default function DebugScreen() {
   const [passkeys, setPasskeys] = useState<PasskeyDebugRow[]>([]);
-  const [sessions, setSessions] = useState<LivenessSessionDebugRow[]>([]);
+  const [gates, setGates] = useState<Gate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -19,9 +15,8 @@ export default function DebugScreen() {
     setError(null);
     setRefreshing(true);
     try {
-      const [p, s] = await Promise.all([fetchPasskeys(), fetchLivenessSessions()]);
-      setPasskeys(p);
-      setSessions(s);
+      setGates(await collectPasskeyGates());
+      setPasskeys(await fetchPasskeys());
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -48,6 +43,25 @@ export default function DebugScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        <Section title={`Passkey preconditions (${gates.filter((g) => g.ok).length}/${gates.length})`}>
+          {gates.length === 0 ? (
+            <Text style={styles.empty}>Pull to refresh.</Text>
+          ) : (
+            gates.map((g) => (
+              <View key={g.label} style={styles.row}>
+                <View style={styles.sessionTop}>
+                  <Text style={styles.rowTitle}>{g.label}</Text>
+                  <Text style={[styles.badgeText, { color: g.ok ? "#16a34a" : "#dc2626" }]}>
+                    {g.ok ? "ok" : "blocked"}
+                  </Text>
+                </View>
+                <Text style={styles.rowMono}>{g.value}</Text>
+                {g.hint ? <Text style={styles.empty}>{g.hint}</Text> : null}
+              </View>
+            ))
+          )}
+        </Section>
+
         <Section title={`Passkeys (${passkeys.length})`}>
           {passkeys.length === 0 ? (
             <Text style={styles.empty}>None — register one on the Passkey tab first.</Text>
@@ -57,40 +71,14 @@ export default function DebugScreen() {
                 <Text style={styles.rowTitle}>{p.platform}</Text>
                 <Text style={styles.rowMono}>id: {p.id.slice(0, 14)}…</Text>
                 <Text style={styles.rowMono}>user: {p.userId.slice(0, 12)}…</Text>
-                {p.metadata?.liveness ? (
-                  <View style={styles.metaBlock}>
-                    <Text style={styles.metaLabel}>liveness audit slice</Text>
-                    <Text style={styles.rowMono}>
-                      {p.metadata.liveness.provider} · score {p.metadata.liveness.score} ·{" "}
-                      {p.metadata.liveness.padLevel} · modality{" "}
-                      {p.metadata.liveness.registeredModality ?? "—"}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.empty}>no liveness slice yet</Text>
-                )}
+                <Text style={styles.rowMono}>
+                  aaguid: {p.aaguid ?? "—"} · counter: {p.counter}
+                </Text>
               </View>
             ))
           )}
         </Section>
 
-        <Section title={`Liveness sessions (${sessions.length})`}>
-          {sessions.length === 0 ? (
-            <Text style={styles.empty}>No sessions yet.</Text>
-          ) : (
-            sessions.map((s) => (
-              <View key={s.id} style={styles.row}>
-                <View style={styles.sessionTop}>
-                  <Text style={styles.rowTitle}>{s.provider}</Text>
-                  <StateBadge state={s.state} />
-                </View>
-                <Text style={styles.rowMono}>chl: {s.challenge}</Text>
-                <Text style={styles.rowMono}>score: {s.score ?? "—"}</Text>
-                <Text style={styles.rowMono}>created: {new Date(s.createdAt).toLocaleTimeString()}</Text>
-              </View>
-            ))
-          )}
-        </Section>
       </ScrollView>
     </SafeAreaView>
   );
@@ -101,16 +89,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {children}
-    </View>
-  );
-}
-
-function StateBadge({ state }: { state: LivenessSessionDebugRow["state"] }) {
-  const color =
-    state === "verified" ? "#16a34a" : state === "failed" ? "#dc2626" : state === "expired" ? "#a16207" : "#475569";
-  return (
-    <View style={[styles.badge, { backgroundColor: `${color}1a`, borderColor: color }]}>
-      <Text style={[styles.badgeText, { color }]}>{state}</Text>
     </View>
   );
 }

@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   return Response.json({
     server: {
       rpId: env.RP_ID,
-      rpName: env.RP_NAME,
+      rpName: env.NEXT_PUBLIC_RP_NAME,
       nextPublicAppUrl: env.NEXT_PUBLIC_APP_URL,
       betterAuthUrl: env.BETTER_AUTH_URL,
     },
