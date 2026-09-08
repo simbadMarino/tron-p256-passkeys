@@ -33,21 +33,21 @@ its warning before you start.
 
 **For parts 1 and 2 (web + contracts):**
 
-| Tool | Version | Check with | Needed for |
-|---|---|---|---|
-| Node | ≥ 20 | `node -v` | everything |
-| npm | ≥ 10 | `npm -v` | workspaces |
-| Postgres | 16 | `psql --version` | the web app's database (Docker is fine) |
-| tronbox | ≥ 4.8 | `tronbox version` | compiling and deploying contracts |
+| Tool     | Version | Check with          | Needed for                              |
+| -------- | ------- | ------------------- | --------------------------------------- |
+| Node     | ≥ 20   | `node -v`         | everything                              |
+| npm      | ≥ 10   | `npm -v`          | workspaces                              |
+| Postgres | 16      | `psql --version`  | the web app's database (Docker is fine) |
+| tronbox  | ≥ 4.8  | `tronbox version` | compiling and deploying contracts       |
 
 **Additionally for part 3 (mobile):**
 
-| Tool | Version | Check with | Needed for |
-|---|---|---|---|
-| Xcode | 16+ | `xcodebuild -version` | iOS builds, iOS 16+ target |
-| Android Studio | — | — | Android builds, API 28+ |
-| Java JDK | 17 | `java -version` | Gradle |
-| ngrok | any | `ngrok version` | a public HTTPS hostname |
+| Tool           | Version | Check with              | Needed for                 |
+| -------------- | ------- | ----------------------- | -------------------------- |
+| Xcode          | 16+     | `xcodebuild -version` | iOS builds, iOS 16+ target |
+| Android Studio | —      | —                      | Android builds, API 28+    |
+| Java JDK       | 17      | `java -version`       | Gradle                     |
+| ngrok          | any     | `ngrok version`       | a public HTTPS hostname    |
 
 You also need a **TRON Nile testnet account** with test TRX for part 2 —
 free from [nileex.io](https://nileex.io/join/getJoinPage). Use a key that
@@ -202,11 +202,11 @@ assertion. On device, that rpId is verified by fetching
 `https://<rpId>/.well-known/apple-app-site-association` over a valid
 certificate.
 
-| rpId | web | native |
-|---|---|---|
-| `localhost` | works | **no** — from the device, that is the device itself |
-| a LAN IP | works | **no** — an IP cannot serve a trusted cert, and WebAuthn requires a domain |
-| a tunnelled or deployed domain | works | **yes** |
+| rpId                           | web   | native                                                                            |
+| ------------------------------ | ----- | --------------------------------------------------------------------------------- |
+| `localhost`                  | works | **no** — from the device, that is the device itself                        |
+| a LAN IP                       | works | **no** — an IP cannot serve a trusted cert, and WebAuthn requires a domain |
+| a tunnelled or deployed domain | works | **yes**                                                                     |
 
 So parts 1 and 2 work on `localhost`; part 3 does not.
 
@@ -366,6 +366,11 @@ build fails to compile — see the
 
 - [`expo-passkey`](https://github.com/iosazee/expo-passkey) — cross-platform passkey plugin
 - [`expo-passkey-liveness`](https://github.com/iosazee/expo-passkey-liveness) — liveness / PAD extension
+
+## Glossary
+
+
+* **rpID:** is the domain (no protocol, no port, no path) where passkeys can be used for, e.g. `acme.com`. During every login process, it is checked if the provided passkey matches the rpID. This prevents any phishing attacks, since only the domain where the passkey was created can be used for authentication.
 
 ## Credits
 

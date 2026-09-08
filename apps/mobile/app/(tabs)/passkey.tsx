@@ -1,7 +1,25 @@
-import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import * as Device from "expo-device";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  credentialsAtRiskOfOverwrite,
+  overwriteWarning,
+  type ExistingCredential,
+} from "@tron-p256/wallet-core";
+
+import { fetchPasskeys } from "@/lib/api";
 import {
   authClient,
   authenticateWithPasskey,
@@ -20,11 +38,70 @@ export default function PasskeyScreen() {
   const user = session.data?.user ?? null;
   const [logs, setLogs] = useState<Log[]>([]);
   const [busy, setBusy] = useState(false);
+  const [existing, setExisting] = useState<ExistingCredential[]>([]);
 
   function log(text: string, level: LogLevel = "info") {
     setLogs((prev) =>
       [{ ts: new Date().toLocaleTimeString(), text, level }, ...prev].slice(0, 50)
     );
+  }
+
+  // Needed to tell whether registering would overwrite something. A failure
+  // is deliberately silent: it leaves `existing` empty, which only costs the
+  // warning, and surfacing a fetch error on a screen the user opened to
+  // register would be noise.
+  const loadExisting = useCallback(async () => {
+    try {
+      const rows = await fetchPasskeys();
+      setExisting(
+        rows.map((r) => ({
+          credentialId: r.credentialId,
+          platform: r.platform,
+          aaguid: r.aaguid,
+          status: r.status,
+          createdAt: r.createdAt,
+          // Matches what expo-passkey stores at registration.
+          deviceName:
+            typeof r.metadata?.["deviceName"] === "string"
+              ? (r.metadata["deviceName"] as string)
+              : null,
+        })),
+      );
+    } catch {
+      setExisting([]);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadExisting();
+    }, [loadExisting]),
+  );
+
+  /**
+   * Confirm before an overwrite. Registering is not undoable — the replaced
+   * private key is gone — so this asks first rather than reporting after.
+   */
+  function requestRegister() {
+    const warning = overwriteWarning(
+      credentialsAtRiskOfOverwrite(existing, {
+        // Matches how the server records the platform ("android" / "ios").
+        platform: Platform.OS,
+        deviceName: Device.modelName,
+      }),
+    );
+    if (!warning) {
+      void handleRegister();
+      return;
+    }
+    Alert.alert("This will replace an existing passkey", warning, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Register anyway",
+        style: "destructive",
+        onPress: () => void handleRegister(),
+      },
+    ]);
   }
 
   async function handleRegister() {
@@ -43,6 +120,9 @@ export default function PasskeyScreen() {
         log(`register failed: ${r.error.message}`, "err");
       } else {
         log("passkey registered ✓", "ok");
+        // Refresh so a second attempt warns against the new credential
+        // rather than the one it just replaced.
+        void loadExisting();
       }
     } catch (e) {
       log(`thrown: ${e instanceof Error ? e.message : String(e)}`, "err");
@@ -94,7 +174,7 @@ export default function PasskeyScreen() {
       </View>
 
       <View style={styles.actions}>
-        <Action label="Register passkey" onPress={handleRegister} busy={busy} primary />
+        <Action label="Register passkey" onPress={requestRegister} busy={busy} primary />
         <Action label="Sign in with passkey" onPress={handleAuthenticate} busy={busy} />
         <Action label="Sign out" onPress={handleSignOut} busy={busy} subtle />
       </View>

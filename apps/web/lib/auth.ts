@@ -1,12 +1,14 @@
 import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { createAuthMiddleware } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins";
 import { expoPasskey } from "expo-passkey/server";
 import { Resend } from "resend";
 
 import { db } from "./db";
 import { env } from "./env";
+import { revokeSupersededPasskeys } from "./revoke-superseded-passkeys";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
@@ -113,6 +115,46 @@ export const auth = betterAuth({
         body: err?.body,
       });
     },
+  },
+  hooks: {
+    /**
+     * Reconcile the passkey table after a registration.
+     *
+     * expo-passkey's register endpoint stores the new credential and leaves
+     * any credential it just overwrote marked `active`, because nothing tells
+     * the server an overwrite happened. Hooking here rather than patching the
+     * plugin keeps the fix in our own code.
+     *
+     * Failures are swallowed: a registration that genuinely succeeded must
+     * not be reported as failed because the tidy-up afterwards did not work.
+     * The cost of that is a stale row, which is what this exists to remove
+     * and which is visible on the dashboard either way.
+     */
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/expo-passkey/register") return;
+
+      // On a thrown APIError `returned` is that error, not the payload — so
+      // requiring success:true means a failed ceremony revokes nothing.
+      const returned = ctx.context.returned as { success?: boolean } | null;
+      if (returned?.success !== true) return;
+
+      const body = ctx.body as { credential?: { id?: unknown } } | undefined;
+      const credentialId = body?.credential?.id;
+      if (typeof credentialId !== "string" || credentialId.length === 0) return;
+
+      try {
+        const revoked = await revokeSupersededPasskeys(credentialId);
+        if (revoked > 0) {
+          // eslint-disable-next-line no-console
+          console.info(
+            `[passkey] revoked ${revoked} credential(s) superseded by ${credentialId}`,
+          );
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("[passkey] failed to revoke superseded credentials", e);
+      }
+    }),
   },
   plugins: [
     // Counterpart to expoClient() in apps/mobile. It adds the app's scheme

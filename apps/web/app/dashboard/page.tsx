@@ -19,6 +19,11 @@ import {
   signOut,
   useSession,
 } from "@/lib/auth-client";
+import {
+  credentialsAtRiskOfOverwrite,
+  overwriteWarning,
+  type ExistingCredential,
+} from "@tron-p256/wallet-core";
 
 /**
  * expo-passkey wraps non-Error fetch failures via `String(err)`, which
@@ -70,7 +75,56 @@ interface PasskeyRow {
   platform: string;
   lastUsed: string;
   createdAt: string;
+  /**
+   * "active" or "revoked". A revoked row is a record of a credential that no
+   * longer exists in any authenticator — re-registering a discoverable passkey
+   * with the same (rpId, userHandle) overwrites the previous one — so it can
+   * never sign again. Showing these undifferentiated implies you have more
+   * usable credentials than you do.
+   */
+  status: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  /** Identifies the provider that holds the key (Google Password Manager, …). */
+  aaguid: string | null;
   metadata: Record<string, unknown> | null;
+}
+
+/**
+ * Adapts a stored row to the shape the shared overwrite check wants. The
+ * device name is only ever inside `metadata`, so it has to be lifted out.
+ */
+function toExistingCredential(row: PasskeyRow): ExistingCredential {
+  const deviceName = row.metadata?.["deviceName"];
+  return {
+    credentialId: row.credentialId,
+    platform: row.platform,
+    aaguid: row.aaguid,
+    status: row.status,
+    createdAt: row.createdAt,
+    deviceName: typeof deviceName === "string" ? deviceName : null,
+  };
+}
+
+function isActive(row: PasskeyRow): boolean {
+  return row.status !== "revoked";
+}
+
+function StatusTag({ row }: { row: PasskeyRow }) {
+  const active = isActive(row);
+  return (
+    <span
+      className={`tag ${active ? "tag-phosphor" : "tag-revoked"}`}
+      // The reason explains *why* it can never be used again, which is the
+      // part that is not obvious from the word "revoked" alone.
+      title={row.revokedReason ?? undefined}
+    >
+      {active ? (
+        <span className="h-1.5 w-1.5 rounded-full bg-phosphor phosphor-flicker" />
+      ) : null}
+      {active ? "active" : "revoked"}
+    </span>
+  );
 }
 
 
@@ -83,6 +137,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Set when a registration is held pending confirmation of an overwrite. */
+  const [pendingWarning, setPendingWarning] = useState<string | null>(null);
+
+  // Counts and CTAs key off the *usable* credentials. Counting revoked rows
+  // as bound would claim more signing keys than the account really has.
+  const activeKeys = passkeys.filter(isActive);
+  const revokedCount = passkeys.length - activeKeys.length;
+  // Active first, newest first within each group, so the credential that can
+  // actually sign is never buried under dead ones. createdAt is an ISO-8601
+  // string, which sorts correctly lexicographically.
+  const ordered = [...passkeys].sort((a, b) =>
+    isActive(a) !== isActive(b)
+      ? isActive(a)
+        ? -1
+        : 1
+      : b.createdAt.localeCompare(a.createdAt),
+  );
 
   useEffect(() => {
     if (session.isPending || session.data || session.error) return;
@@ -129,8 +200,29 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  /**
+   * Gate on the overwrite check first. Registering is not undoable — the
+   * replaced private key is gone — so the confirmation happens before the
+   * ceremony rather than as a toast afterwards.
+   */
+  function requestRegisterPasskey() {
+    const warning = overwriteWarning(
+      credentialsAtRiskOfOverwrite(passkeys.map(toExistingCredential), {
+        platform: "web",
+        deviceName:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+      }),
+    );
+    if (warning) {
+      setPendingWarning(warning);
+      return;
+    }
+    void handleRegisterPasskey();
+  }
+
   async function handleRegisterPasskey() {
     if (!user) return;
+    setPendingWarning(null);
     setBusy(true);
     setError(null);
     try {
@@ -229,7 +321,7 @@ export default function DashboardPage() {
               .
             </h1>
             <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-              {passkeys.length === 0
+              {activeKeys.length === 0
                 ? "You're signed in via email OTP. Bind a passkey to skip the email step next time, and to sign operations for the smart wallet."
                 : "Below are the credentials bound to this account. Add another passkey to bind a new device."}
             </p>
@@ -237,7 +329,7 @@ export default function DashboardPage() {
 
           {/* primary action card — empty-state CTA flips to a bound-passkey
               summary once the user has registered at least one credential. */}
-          {passkeys.length === 0 ? (
+          {activeKeys.length === 0 ? (
             <div className="relative overflow-hidden rounded-xl border border-border-strong bg-paper/40 p-6">
               <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-phosphor/12 blur-3xl" />
               <span className="tag">§ Action</span>
@@ -250,7 +342,7 @@ export default function DashboardPage() {
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={handleRegisterPasskey}
+                  onClick={requestRegisterPasskey}
                   disabled={busy}
                   className="group inline-flex h-11 items-center justify-between gap-3 rounded-full bg-phosphor px-5 text-phosphor-foreground transition-transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
                 >
@@ -278,10 +370,10 @@ export default function DashboardPage() {
             </div>
           ) : (
             <BoundSummary
-              passkeys={passkeys}
+              passkeys={ordered}
               busy={busy}
               loading={loading}
-              onAddAnother={handleRegisterPasskey}
+              onAddAnother={requestRegisterPasskey}
               onRefresh={refresh}
             />
           )}
@@ -298,13 +390,47 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
+        {pendingWarning ? (
+          <div className="mt-8 rounded-md border border-amber/40 bg-amber/8 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <span className="data mt-0.5 shrink-0 text-[10px] uppercase tracking-[0.16em] text-amber">
+                warn
+              </span>
+              <p className="text-[13px] leading-relaxed text-foreground">
+                {pendingWarning}
+              </p>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3 pl-0 sm:pl-11">
+              <button
+                type="button"
+                onClick={() => void handleRegisterPasskey()}
+                disabled={busy}
+                className="data inline-flex h-9 items-center gap-2 rounded-full border border-amber/60 px-4 text-[10.5px] uppercase tracking-[0.14em] text-amber hover:bg-amber/12 disabled:opacity-60"
+              >
+                Register anyway
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingWarning(null)}
+                className="data inline-flex h-9 items-center gap-2 rounded-full border border-border-strong px-4 text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground hover:border-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {/* ============== STATS LEDGER ============== */}
         <section className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border-strong bg-border">
           <Stat
             k="A1"
-            label="Bound credentials"
-            value={passkeys.length.toString().padStart(2, "0")}
-            sub="WebAuthn ES256"
+            label="Active credentials"
+            value={activeKeys.length.toString().padStart(2, "0")}
+            sub={
+              revokedCount > 0
+                ? `WebAuthn ES256 · ${revokedCount} revoked`
+                : "WebAuthn ES256"
+            }
             icon={<KeyRound className="h-3.5 w-3.5" />}
           />
           <Stat
@@ -340,7 +466,7 @@ export default function DashboardPage() {
                 />
               ) : (
                 <ul className="divide-y divide-border-strong/40">
-                  {passkeys.map((p, i) => (
+                  {ordered.map((p, i) => (
                     <PasskeyEntry key={p.id} row={p} idx={i} />
                   ))}
                 </ul>
@@ -402,7 +528,10 @@ function BoundSummary({
   onAddAnother: () => void;
   onRefresh: () => void;
 }) {
-  const count = passkeys.length;
+  // The headline count is the usable one; revoked rows still appear in the
+  // preview list, but tagged, so a stale credential is visible rather than
+  // silently inflating the total.
+  const count = passkeys.filter(isActive).length;
   const preview = passkeys.slice(0, 3);
   return (
     <div className="relative overflow-hidden rounded-xl border border-border-strong bg-paper/40 p-6">
@@ -413,7 +542,7 @@ function BoundSummary({
           bound
         </span>
         <span className="data text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          {count} credential{count === 1 ? "" : "s"}
+          {count} active credential{count === 1 ? "" : "s"}
         </span>
       </div>
 
@@ -436,12 +565,17 @@ function BoundSummary({
               <span className="data text-[10px] text-phosphor tracking-[0.1em]">
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <div className="min-w-0">
-                <p className="data truncate text-[12px]">
+              <div className={`min-w-0 ${isActive(p) ? "" : "opacity-55"}`}>
+                <p className="data flex items-center gap-1.5 truncate text-[12px]">
+                  <StatusTag row={p} />
                   <span className="inline-flex items-center gap-1 rounded-sm bg-paper px-1.5 py-0.5 text-[10.5px] uppercase tracking-[0.12em] text-foreground">
                     {p.platform}
                   </span>{" "}
-                  <span className="text-muted-foreground">
+                  <span
+                    className={`text-muted-foreground ${
+                      isActive(p) ? "" : "line-through"
+                    }`}
+                  >
                     {p.credentialId.slice(0, 14)}…
                   </span>
                 </p>
@@ -549,25 +683,52 @@ function PanelHeader({
 }
 
 function PasskeyEntry({ row, idx }: { row: PasskeyRow; idx: number }) {
+  const active = isActive(row);
   return (
     <li className="group flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-      <div className="flex items-start gap-4">
-        <span className="data mt-1 text-[10px] text-phosphor tracking-[0.1em]">
+      <div className={`flex items-start gap-4 ${active ? "" : "opacity-55"}`}>
+        <span
+          className={`data mt-1 text-[10px] tracking-[0.1em] ${
+            active ? "text-phosphor" : "text-muted-foreground"
+          }`}
+        >
           {String(idx + 1).padStart(2, "0")}
         </span>
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
+            <StatusTag row={row} />
             <span className="data inline-flex items-center gap-1 rounded-sm bg-paper px-1.5 py-0.5 text-[10.5px] uppercase tracking-[0.12em] text-foreground">
               {row.platform}
             </span>
-            <span className="data text-[12px] text-muted-foreground">
+            <span
+              className={`data text-[12px] text-muted-foreground ${
+                active ? "" : "line-through"
+              }`}
+            >
               {row.credentialId.slice(0, 22)}…
             </span>
           </div>
+          {!active && row.revokedReason ? (
+            <p className="max-w-xl text-[12px] leading-relaxed text-muted-foreground">
+              {row.revokedReason}
+            </p>
+          ) : null}
         </div>
       </div>
-      <span className="data shrink-0 text-[11px] text-muted-foreground">
+      <span
+        className={`data shrink-0 text-[11px] text-muted-foreground ${
+          active ? "" : "opacity-55"
+        }`}
+      >
         {new Date(row.createdAt).toLocaleString()}
+        {!active && row.revokedAt ? (
+          <>
+            <br />
+            <span className="text-amber">
+              revoked {new Date(row.revokedAt).toLocaleDateString()}
+            </span>
+          </>
+        ) : null}
       </span>
     </li>
   );

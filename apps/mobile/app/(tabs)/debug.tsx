@@ -28,6 +28,17 @@ export default function DebugScreen() {
     load();
   }, []);
 
+  const activePasskeys = passkeys.filter((p) => p.status !== "revoked");
+  // Active first, newest first within each group, so a credential that can
+  // still sign is never listed below dead ones. createdAt is an ISO-8601
+  // string, so it sorts correctly lexicographically.
+  const orderedPasskeys = [...passkeys].sort((a, b) => {
+    const aActive = a.status !== "revoked";
+    const bActive = b.status !== "revoked";
+    if (aActive !== bActive) return aActive ? -1 : 1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -62,20 +73,56 @@ export default function DebugScreen() {
           )}
         </Section>
 
-        <Section title={`Passkeys (${passkeys.length})`}>
+        <Section title={`Passkeys (${activePasskeys.length} active of ${passkeys.length})`}>
           {passkeys.length === 0 ? (
             <Text style={styles.empty}>None — register one on the Passkey tab first.</Text>
           ) : (
-            passkeys.map((p) => (
-              <View key={p.id} style={styles.row}>
-                <Text style={styles.rowTitle}>{p.platform}</Text>
-                <Text style={styles.rowMono}>id: {p.id.slice(0, 14)}…</Text>
-                <Text style={styles.rowMono}>user: {p.userId.slice(0, 12)}…</Text>
-                <Text style={styles.rowMono}>
-                  aaguid: {p.aaguid ?? "—"} · counter: {p.counter}
-                </Text>
-              </View>
-            ))
+            orderedPasskeys.map((p) => {
+              const active = p.status !== "revoked";
+              return (
+                <View key={p.id} style={[styles.row, !active && styles.rowRevoked]}>
+                  <View style={styles.sessionTop}>
+                    <Text style={styles.rowTitle}>{p.platform}</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        active ? styles.badgeActive : styles.badgeRevoked,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.badgeText,
+                          active ? styles.badgeTextActive : styles.badgeTextRevoked,
+                        ]}
+                      >
+                        {active ? "ACTIVE" : "REVOKED"}
+                      </Text>
+                    </View>
+                  </View>
+                  {/* The identifier every other surface speaks in: the
+                      Wallet tab's assertion, the /api/p256/keys lookup, and
+                      the server's revoke log all key off credentialId, so it
+                      has to be here and in full to be matchable. The row id
+                      below is database bookkeeping and is deliberately
+                      labelled as such — calling it "id" made the two easy to
+                      confuse. */}
+                  <Text style={styles.rowMono} selectable>
+                    credentialId: {p.credentialId}
+                  </Text>
+                  <Text style={styles.rowMono}>row id: {p.id.slice(0, 14)}…</Text>
+                  <Text style={styles.rowMono}>user: {p.userId.slice(0, 12)}…</Text>
+                  <Text style={styles.rowMono}>
+                    aaguid: {p.aaguid ?? "—"} · counter: {p.counter}
+                  </Text>
+                  {!active ? (
+                    <Text style={styles.revokedNote}>
+                      Overwritten in the authenticator by a later registration
+                      for the same account — it can no longer sign.
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })
           )}
         </Section>
 
@@ -112,4 +159,11 @@ const styles = StyleSheet.create({
   sessionTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, borderWidth: 1 },
   badgeText: { fontSize: 11, fontWeight: "600" },
+  // Amber, not red: a revoked credential is a dead end, not an error.
+  badgeActive: { backgroundColor: "#dcfce7", borderColor: "#16a34a" },
+  badgeRevoked: { backgroundColor: "#fef3c7", borderColor: "#d97706" },
+  badgeTextActive: { color: "#15803d" },
+  badgeTextRevoked: { color: "#b45309" },
+  rowRevoked: { opacity: 0.6, backgroundColor: "#fafafa" },
+  revokedNote: { marginTop: 8, fontSize: 11, lineHeight: 16, color: "#78716c" },
 });

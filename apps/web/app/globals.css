@@ -238,6 +238,13 @@
   border-color: oklch(0.88 0.22 128 / 0.5);
   background: oklch(0.88 0.22 128 / 0.06);
 }
+/* A revoked credential is a dead end, not a failure — amber rather than
+   destructive red, which is reserved for things that went wrong. */
+.tag-revoked {
+  color: var(--amber);
+  border-color: oklch(0.82 0.18 75 / 0.5);
+  background: oklch(0.82 0.18 75 / 0.06);
+}
 
 /* link underline */
 .link-rule {

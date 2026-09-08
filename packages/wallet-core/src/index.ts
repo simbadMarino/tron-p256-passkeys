@@ -10,3 +10,4 @@ export * from "./assertion";
 export * from "./tron-address";
 export * from "./wallet-op";
 export * from "./execute-calldata";
+export * from "./credential-collision";
