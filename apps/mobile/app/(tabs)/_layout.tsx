@@ -1,6 +1,6 @@
 import { Redirect, Tabs } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSession } from "@/lib/auth-client";
 
 export default function TabsLayout() {
@@ -28,9 +28,21 @@ export default function TabsLayout() {
   }
   return (
     <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="passkey" options={{ title: "Passkey" }} />
-      <Tabs.Screen name="wallet" options={{ title: "Wallet" }} />
-      <Tabs.Screen name="debug" options={{ title: "Debug" }} />
+      <Tabs.Screen name="passkey" options={{
+        title: "Passkey", tabBarIcon: ({ color, size }) => (
+          <Ionicons name="finger-print" size={size} color={color} />
+        )
+      }} />
+      <Tabs.Screen name="wallet" options={{
+        title: "Wallet", tabBarIcon: ({ color, size }) => (
+          <Ionicons name="wallet-outline" size={size} color={color} />
+        ),
+      }} />
+      <Tabs.Screen name="debug" options={{
+        title: "Debug", tabBarIcon: ({ color, size }) => (
+          <Ionicons name="bug-outline" size={size} color={color} />
+        ),
+      }} />
     </Tabs>
   );
 }
