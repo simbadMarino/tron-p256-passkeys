@@ -1,7 +1,7 @@
 # `@tron-p256-passkey/web`
 
 The Next.js 15 + Better Auth + Prisma workspace. Hosts the Better
-Auth handler (which wires both `expo-passkey` and `expo-passkey-liveness`),
+Auth handler (which wires both `expo-passkey`),
 serves the `/.well-known` files the native mobile app needs, and
 exposes the browser landing, login, and dashboard flows.
 
@@ -22,7 +22,7 @@ Then:
 ```bash
 cp .env.example .env
 # Edit .env: DATABASE_URL="postgresql://postgres:dev@localhost:5432/postgres"
-npm install --legacy-peer-deps              # from monorepo root
+npm install                                 # from monorepo root
 npm run db:push --workspace=@tron-p256-passkey/web
 npm run dev --workspace=@tron-p256-passkey/web    # http://localhost:3000
 ```
@@ -50,7 +50,7 @@ Inspect rows:
 
 1. Push the monorepo to GitHub. In Vercel, set the project's *Root
    Directory* to `apps/web` and *Install Command* to
-   `cd ../.. && npm install --legacy-peer-deps`.
+   `cd ../.. && npm install`.
 2. Create a free Postgres database on [Neon](https://neon.tech) or
    any Vercel-compatible provider.
 3. Set environment variables:

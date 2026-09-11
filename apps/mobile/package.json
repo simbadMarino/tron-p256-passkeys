@@ -2,7 +2,7 @@
   "name": "@tron-p256-passkey/mobile",
   "version": "0.0.1",
   "private": true,
-  "description": "Expo app demonstrating expo-passkey + expo-passkey-liveness against the apps/web backend.",
+  "description": "Expo app demonstrating TRON P256VERIFY using expo-passkey against the apps/web backend.",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -39,7 +39,6 @@
     "expo-local-authentication": "~55.0.14",
     "expo-network": "~55.0.18",
     "expo-passkey": "^0.3.15",
-    "expo-passkey-liveness": "^0.1.0-alpha.2",
     "expo-router": "~55.0.14",
     "expo-secure-store": "~55.0.14",
     "expo-splash-screen": "~55.0.21",

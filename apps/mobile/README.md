@@ -1,7 +1,6 @@
 # tron p256 passkeys mobile
 
-The Expo SDK 55 workspace. Runs `expo-passkey` + `expo-passkey-liveness`
-natively on iOS and Android against the `apps/web` backend.
+The Expo SDK 55 workspace. Runs `expo-passkey` natively on iOS and Android against the `apps/web` backend.
 
 > Looking for the monorepo overview? See the
 > [root README](../../README.md).
@@ -15,8 +14,6 @@ natively on iOS and Android against the `apps/web` backend.
   secure enclave (Face ID / Touch ID / fingerprint)
 - **Sign in with passkey + liveness** — `authenticateWithPasskeyAndLiveness`
   drives the assertion + liveness gate
-- **Standalone liveness** — `verifyLiveness` on its own, returning a
-  signed token (Mode 1 from the [docs](https://github.com/iosazee/expo-passkey-liveness#integration-modes))
 - **Debug screen** — fetches `/api/debug/passkeys` and
   `/api/debug/liveness-sessions` so you can see what landed server-side
 - **Wallet screen** — signs a `P256SmartWallet` operation digest with the
@@ -25,24 +22,18 @@ natively on iOS and Android against the `apps/web` backend.
   [`@tron-p256/wallet-core`](../../packages/wallet-core), so the digest is
   computed by one implementation rather than two
 
-The default `apps/web` backend uses a demo `customProvider` called `demo`.
-That is enough to test server enforcement and audit rows, but a real native
-camera ceremony needs a provider adapter. Configure `rekognitionProvider` or
-`iproovProvider` server-side, add the same provider to the
-`expo-passkey-liveness` config plugin options in `app.config.ts`, and rebuild
-the dev client.
 
 ## Prerequisites
 
 Beyond the root [prerequisites](../../README.md#prerequisites):
 
-| Tool | Version | Check with | Why |
-|---|---|---|---|
-| Xcode | 16+ | `xcodebuild -version` | iOS build; deployment target is 16.0 |
-| Android Studio | — | — | Android build; compileSdk 36, minSdk 26 |
-| Java JDK | 17 | `java -version` | Gradle |
-| ngrok | any | `ngrok version` | a public HTTPS hostname for the rpId |
-| A physical device | iOS 16+ / Android 9+ | — | biometrics; simulators can register but behave differently |
+| Tool              | Version              | Check with              | Why                                                        |
+| ----------------- | -------------------- | ----------------------- | ---------------------------------------------------------- |
+| Xcode             | 16+                  | `xcodebuild -version` | iOS build; deployment target is 16.0                       |
+| Android Studio    | —                   | —                      | Android build; compileSdk 36, minSdk 26                    |
+| Java JDK          | 17                   | `java -version`       | Gradle                                                     |
+| ngrok             | any                  | `ngrok version`       | a public HTTPS hostname for the rpId                       |
+| A physical device | iOS 16+ / Android 9+ | —                      | biometrics; simulators can register but behave differently |
 
 You also need the web app running and reachable over HTTPS — mobile talks to
 it for auth and for the passkey challenge endpoints.
@@ -71,12 +62,12 @@ https://<rpId>/.well-known/assetlinks.json
 
 That requires **HTTPS with a valid certificate on a real domain**. So:
 
-| rpId | web | native |
-|---|---|---|
-| `localhost` | works | **no** — from the device, that is the device itself |
+| rpId                       | web   | native                                                                                       |
+| -------------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| `localhost`              | works | **no** — from the device, that is the device itself                                   |
 | a LAN IP (`192.168.x.x`) | works | **no** — an IP cannot serve a trusted cert for itself, and WebAuthn requires a domain |
-| a tunnelled hostname | works | **yes** |
-| a real deployed domain | works | **yes** |
+| a tunnelled hostname       | works | **yes**                                                                                |
+| a real deployed domain     | works | **yes**                                                                                |
 
 Older versions of this README suggested a LAN IP. That is enough to reach
 the dev server, but native passkey registration will still fail — the
@@ -147,7 +138,7 @@ You want JSON containing `TEAMID.com.cctechmx.tronpasskeydemo`. A 404 means the
 ### Step 4 — Install and build
 
 ```bash
-npm install                  # from the monorepo root; runs patch-package
+npm install                  # from the monorepo root;
 ```
 
 Native passkeys do **not** work in Expo Go — you need a development build:
@@ -166,12 +157,12 @@ npx expo start --clear       # when a resolution error looks stale
 
 **Metro restart vs native rebuild** — worth knowing which you need:
 
-| change | what to do |
-|---|---|
-| TypeScript / React / a screen | reload the dev client |
-| a Metro resolver setting | `expo start --clear` |
+| change                                               | what to do                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------- |
+| TypeScript / React / a screen                        | reload the dev client                                                             |
+| a Metro resolver setting                             | `expo start --clear`                                                            |
 | `EXPO_PUBLIC_RP_ID`, anything in `app.config.ts` | **full rebuild** — the rpId is written into the entitlements at build time |
-| adding a native module | **full rebuild** — autolinking and Gradle have to pick it up |
+| adding a native module                               | **full rebuild** — autolinking and Gradle have to pick it up               |
 
 ## Troubleshooting — build failures we hit, and why
 
@@ -208,31 +199,6 @@ Metro's default) with a comment explaining why it must stay that way.
 `watchFolders` and `nodeModulesPaths` are what make the monorepo resolve;
 that third line was only a restriction.
 
-### `'getCode' overrides nothing` — Kotlin compile failure
-
-`expo-passkey-liveness@0.1.0-alpha.2` overrides `CodedException.getCode()`,
-which expo-modules-core 55 replaced with a `val code` plus a
-`(code, message, cause)` constructor. Fixed by
-[`patches/expo-passkey-liveness+0.1.0-alpha.2.patch`](../../patches), applied
-automatically by `patch-package` on `postinstall`. Reported upstream — see
-[`UPSTREAM-ISSUE-1-android-kotlin.md`](../../UPSTREAM-ISSUE-1-android-kotlin.md).
-
-### `Unable to resolve a valid config plugin for expo-passkey-liveness`
-
-Same package. Its `exports` map keys the plugin as `./app.plugin` without
-the extension, but Expo's resolver asks for `app.plugin.js` — which an
-`exports` map then blocks, even though the file ships. Expo falls back to the
-package main, which throws `_guard is not defined`.
-
-The plugin is therefore **not** listed in `app.config.ts`. Its only effect is
-adding camera permissions for a real PAD provider's capture ceremony, and the
-demo `customProvider` opens no camera. **Face ID is unaffected** — that runs
-in the OS and needs `NSFaceIDUsageDescription`, supplied by
-`expo-local-authentication`. See
-[`UPSTREAM-ISSUE-2-config-plugin.md`](../../UPSTREAM-ISSUE-2-config-plugin.md).
-
-Camera permissions are commented out in `app.config.ts` for the same reason —
-re-enable them together with the plugin when a real provider goes in.
 
 ## Pointing at a remote backend
 

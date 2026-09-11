@@ -1,37 +1,27 @@
 # TRON P256 PASSKEYS
 
-End-to-end reference monorepo for
+End-to-end reference monorepo for TRON P256VERIFY + Passkeys
 
-[`expo-passkey`](https://github.com/iosazee/expo-passkey) and
-[`expo-passkey-liveness`](https://github.com/iosazee/expo-passkey-liveness).
-Two apps, one backend.
 
-| Workspace                     | What it is                      | Demonstrates                                                                                     |
-| ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [`apps/web`](./apps/web)       | Next.js + Better Auth + Prisma  | Server config wiring both plugins, browser WebAuthn ceremonies, debug surface, deploys to Vercel |
-| [`apps/mobile`](./apps/mobile) | Expo SDK 55 app (iOS + Android) | Native passkey ceremony, liveness-wrapper wiring, debug screen — built against the same backend |
+| Workspace                     | What it is                      | Demonstrates                                                                                            |
+| ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [`apps/web`](./apps/web)       | Next.js + Better Auth + Prisma  | Server config wiring both plugins, browser WebAuthn ceremonies, debug surface, deploys to Vercel        |
+| [`apps/mobile`](./apps/mobile) | Expo SDK 55 app (iOS + Android) | Native passkey ceremony, liveness-wrapper wiring, debug screen — built against the same (web) backend |
 
-The web app exercises everything **except** the native camera (it uses
-a demo `customProvider` that auto-passes). The mobile app shows the native
-client wiring; configure a real provider adapter such as Rekognition or
-iProov on both server and native build when you want a real PAD ceremony.
 
-## What you'll end up with
+## Overview
 
-Working through this guide gets you, in order:
+### Project Features
 
-1. A web app where you sign in with an email code, then register a passkey
-2. A page that exports that passkey's signature as `r`, `s`, `x`, `y`
-3. A smart wallet on TRON Nile that verifies those signatures on-chain
-4. Optionally, the same flow running natively on iOS or Android
+* TRON P256VERIFY Single Passkey Smart Wallet
+* Web app with email OTP sign-in and passkey registration + login
+* iOS and Android Apps with an email first time OTP sign-in and passkey registration + login (needs a public HTTPS hostname and native build)
+* Passkey export (`r`, `s`, `x`, `y`) to be used as the Smart Wallet constructor parameters
 
-Parts 1 and 2 run entirely on `localhost` and take about 20 minutes. Part 3
-needs a public HTTPS hostname and a native build — budget longer, and read
-its warning before you start.
 
 ## Prerequisites
 
-**For parts 1 and 2 (web + contracts):**
+**Web + contracts:**
 
 | Tool     | Version | Check with          | Needed for                              |
 | -------- | ------- | ------------------- | --------------------------------------- |
@@ -40,7 +30,9 @@ its warning before you start.
 | Postgres | 16      | `psql --version`  | the web app's database (Docker is fine) |
 | tronbox  | ≥ 4.8  | `tronbox version` | compiling and deploying contracts       |
 
-**Additionally for part 3 (mobile):**
+Additionally you will need TRON Nile testnet accoun with test TRX, free to get at [nileex.io](https://nileex.io/join/getJoinPage)
+
+**Mobile:**
 
 | Tool           | Version | Check with              | Needed for                 |
 | -------------- | ------- | ----------------------- | -------------------------- |
@@ -49,43 +41,36 @@ its warning before you start.
 | Java JDK       | 17      | `java -version`       | Gradle                     |
 | ngrok          | any     | `ngrok version`       | a public HTTPS hostname    |
 
-You also need a **TRON Nile testnet account** with test TRX for part 2 —
-free from [nileex.io](https://nileex.io/join/getJoinPage). Use a key that
-has never touched mainnet.
-
 ---
 
-# Part 1 — The web app
+## Getting Started
 
-Start here. Everything works on `localhost`, no tunnel and no accounts.
+### The web app
 
-### Step 1 — Install
+Everything works on `localhost`, no tunnel and no accounts.
+
+#### Step 1 — Install
 
 ```bash
 git clone <this-repo>
 cd tron-p256-passkeys
-npm install --legacy-peer-deps
+npm install
 ```
 
-`--legacy-peer-deps` is needed because `expo-passkey-liveness` is an alpha
-with strict peer ranges. `postinstall` runs `patch-package`, which applies a
-required fix to that package — you should see `Applying patches...` in the
-output.
-
-Pinned deliberately:
-
-- `expo-passkey@^0.3.15` — 0.3.14+ forwards `livenessToken` from both clients
-- `expo-passkey-liveness@0.1.0-alpha.2` — alpha, pin exactly
-
-### Step 2 — Start a database
+#### Step 2 — Start a database
 
 ```bash
-docker run -d --name tron-p256-pg -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:16
+docker run -d --name tron-p256-pg -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:16 #fresh start
+
+OR
+
+docker start tron-p256-pg #if container was previously created
+
 ```
 
 Any Postgres 16 works; Docker is just the quickest.
 
-### Step 3 — Configure the web app
+#### Step 3 — Configure the web app
 
 ```bash
 cp apps/web/.env.example apps/web/.env
@@ -116,37 +101,33 @@ npm run dev:web
 
 > **If port 3000 is busy**, Next will silently move to 3001 — and the auth
 > client derives its base URL from the browser's origin, so it follows
-> along. But `RP_ID` and the passkey origin list still say `3000`. Free the
-> port rather than fighting it.
+ along. But `RP_ID` and the passkey origin list still say `3000`. Free the
+ port rather than fighting it.
 
 ### Step 5 — Register a passkey
 
-1. Open [http://localhost:3000](http://localhost:3000)
+1. Open [http://localhost:3000](http://localhost:3000) (or your configured public HTTPS host name)
 2. Sign in at `/login` with **Email code** — check the server console for
    the code if you have no Resend key
 3. From `/dashboard`, click **Register passkey** and complete Touch ID /
    Windows Hello
 
-You should now see the credential listed on the dashboard with a liveness
-audit row beside it.
+You should now see the credential listed on the dashboard.
 
 ### Step 6 — Export the signature components
 
 Open `/p256` (linked from the dashboard footer). Pick **Wallet operation**,
 and the page shows the operation digest it will ask your passkey to sign.
 Sign it, and you get `r`, `s`, the public key `x`/`y`, the flags byte, and
-ABI-encoded calldata ready for a contract call.
+ABI-encoded calldata ready for a contract deployment and call.
 
-That's the whole point of the project: the credential that logs you in also
-signs transactions.
+During the Smart Wallet deployment the PublicX, PublicY and UV flag are needed so take note on it. 
 
 ---
 
 # Part 2 — The smart wallet on TRON Nile
 
-`P256VERIFY` is live at address `0x100` on **Nile** but **not on mainnet** at
-the time of writing — the `getAllowTvmOsaka` chain parameter reads `1` on
-Nile and `0` on mainnet. Check before assuming otherwise.
+`P256VERIFY` is live at address `0x100` on **Nile** and **Mainnet**
 
 ### Step 1 — Compile
 
@@ -167,26 +148,26 @@ gitignored. Never use a key that holds mainnet funds.
 ### Step 3 — Deploy with your passkey's public key
 
 Edit `migrations/2_deploy_contracts.js` so the constructor receives the
-`x` and `y` from `/p256`, then:
+`x` and `y` and UV flag from `/p256`, then:
 
 ```bash
-source .env && tronbox migrate --network nile
+source .env && tronbox deploy --network nile
 ```
 
-The `x`/`y` are **immutable** — the wallet is permanently bound to that one
-credential. Lose the passkey and the wallet is unreachable.
+⚠️ Warning: The `x`/`y` are **immutable** — the wallet is permanently bound to that one
+credential. Lose or overwrite the passkey and the wallet is unreachable. For production purposes consider adding a  recovery / ownership swap path.
 
 ### Step 4 — Sign and submit an operation
 
 Full walkthrough in the
 [contracts README](tron_contracts/README.md). In outline: read `nonce()`
-from the deployed wallet, enter the operation in `/p256` using the deployed
-address and chain id `3448148188`, sign, then submit the emitted
-`parameter`.
+from the deployed wallet, enter the operation in `/p256` page using the deployed
+address and chain id `3448148188`(Nile), sign, then submit the emitted
+`parameter` (Bare hex) using the provided [broadcast](tron_contracts/broadcast.js) script .
 
 > **The digest commits to the wallet address and chain id.** Change either
-> and the signature will not verify — this is what stops a signature being
-> replayed against a different wallet or a different chain.
+ and the signature will not verify,  this is what stops a signature being
+ replayed against a different wallet or a different chain.
 
 ---
 
@@ -219,6 +200,10 @@ deploying a wallet you intend to keep**, or you will redeploy for
 
 ### Then follow the mobile guide
 
+Note: For the sake of this demo ngork will be used, perform the necesary adjustment if a different service is used.
+
+After configuring setting up your ngrok or similar public domain, do: 
+
 ```bash
 ngrok http 3000 --url=your-static-domain.ngrok-free.app
 ```
@@ -228,12 +213,7 @@ a static ngrok domain, the env vars on both sides, the `.well-known`
 verification, the development build, and when a Metro restart suffices
 versus a full native rebuild.
 
-It also documents every build failure we hit and why — optional peer
-dependencies that Metro requires anyway, a resolver setting that breaks
-nested version resolution, and two bugs in `expo-passkey-liveness`
-(one patched locally, both reported upstream in
-[`UPSTREAM-ISSUE-1`](UPSTREAM-ISSUE-1-android-kotlin.md) and
-[`UPSTREAM-ISSUE-2`](UPSTREAM-ISSUE-2-config-plugin.md)).
+
 
 Native passkeys do **not** work in Expo Go — a development build is
 required.
@@ -251,7 +231,6 @@ tron-p256-passkeys/
 │   └── wallet-core/        # isomorphic P-256 / WebAuthn / TRON encoding,
 │                           # shared by both apps so operationDigest exists once
 ├── tron_contracts/         # TronBox — P256SmartWallet, WebAuthn.sol, P256.sol
-├── patches/                # patch-package; applied on postinstall
 ├── package.json            # npm workspaces root (apps/*, packages/*)
 ├── tsconfig.base.json
 └── README.md               # ← you are here
@@ -277,37 +256,17 @@ implemented in exactly one place.
   `passkeyChallenge` → `passkeyChallenge`)
 - Serverless-friendly config (`cleanup.disableInterval`) for Vercel
 
-**From `expo-passkey-liveness`:**
-
-- Both plugins composed in one `betterAuth()` call (see
-  [`apps/web/lib/auth.ts`](./apps/web/lib/auth.ts))
-- `/expo-passkey/liveness/session` and `/expo-passkey/liveness/verify`
-  endpoints reachable end-to-end
-- Enforcement hook validates `livenessToken` on register and
-  authenticate (`required: "both"`)
-- Audit slice written into `passkey.metadata.liveness`
-- Demo `customProvider` auto-passes — no third-party credentials
-  needed to see the full server flow
 
 ### `apps/mobile` — native ceremony wiring
 
 - Email OTP sign-in via `@better-auth/expo`, session
   persisted in `expo-secure-store`
-- **Register passkey + liveness** — calls `registerPasskeyWithLiveness`,
-  then registers a platform passkey bound to the device's secure enclave
-- **Sign in with passkey + liveness** — assertion ceremony with the
-  same liveness gate
-- **Standalone liveness** — Mode 1 from the docs: runs `verifyLiveness`
-  on its own, useful for step-up flows
+- **Register passkey** - Register your passkey
+- **Sign in with passkey** — assertion ceremony
 - **Debug screen** — pulls `/api/debug/passkeys` and
   `/api/debug/liveness-sessions` from the backend so you can see the
   rows the ceremony just created
 
-The checked-in backend uses a demo liveness provider named `demo` so the web
-flow is deterministic and credential-free. To make the mobile liveness step
-open a real camera SDK, switch the server provider to `rekognitionProvider`
-or `iproovProvider`, add that provider to the `expo-passkey-liveness` config
-plugin options in `apps/mobile/app.config.ts`, then rebuild the dev client.
 
 ## Wiring the mobile app to the web backend
 
@@ -349,10 +308,6 @@ npm run type-check                 # tsc in every workspace
 npm run lint                       # eslint in every workspace
 ```
 
-`postinstall` runs `patch-package`, which applies
-`patches/expo-passkey-liveness+0.1.0-alpha.2.patch`. Without it the Android
-build fails to compile — see the
-[mobile README](apps/mobile/README.md#troubleshooting--build-failures-we-hit-and-why).
 
 ## Deploying
 
@@ -368,7 +323,6 @@ build fails to compile — see the
 - [`expo-passkey-liveness`](https://github.com/iosazee/expo-passkey-liveness) — liveness / PAD extension
 
 ## Glossary
-
 
 * **rpID:** is the domain (no protocol, no port, no path) where passkeys can be used for, e.g. `acme.com`. During every login process, it is checked if the provided passkey matches the rpID. This prevents any phishing attacks, since only the domain where the passkey was created can be used for authentication.
 

@@ -5,11 +5,10 @@
  * implementations of one spec is a real drift hazard — add a field on one
  * side and signatures start failing with the crypto looking blameless.
  *
- * Nothing enforces agreement automatically any more (the Foundry parity
- * test was removed with the rest of that harness). The check that remains
- * is manual and worth doing after touching either side: call
- * `operationDigest` on the deployed wallet and confirm it returns the same
- * value this produces for the same inputs. The contract is the authority.
+ * Agreement is enforced by `tron_contracts/test/operation-digest-parity.js`,
+ * which deploys the wallet and compares its `operationDigest` against this
+ * one over a set of vectors. Run `npm run test:contracts` after touching
+ * either side; it needs a local TRE node. The contract is the authority.
  *
  * Encoding note: every field in the struct is a static ABI type, so
  * `abi.encode` is just eight 32-byte words laid end to end. No ABI encoder

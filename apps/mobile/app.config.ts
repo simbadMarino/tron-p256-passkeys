@@ -81,20 +81,7 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
-    // "expo-passkey-liveness" is intentionally absent.
-    //
-    // The plugin's only job is camera permissions (NSCameraUsageDescription /
-    // android.permission.CAMERA) for a real PAD vendor's capture ceremony.
-    // This demo uses the auto-passing customProvider, which opens no camera,
-    // so the permission is unused. Face ID is unaffected — that runs in the
-    // OS and needs NSFaceIDUsageDescription, set by expo-local-authentication
-    // above.
-    //
-    // It also cannot currently be loaded: 0.1.0-alpha.2 does not expose
-    // "./app.plugin.js" in its exports map, and its main entry throws
-    // (`_guard is not defined`), so Expo's resolver fails both paths.
-    //
-    // Add back when wiring in Rekognition or iProov.
+
   ],
   experiments: {
     typedRoutes: true,

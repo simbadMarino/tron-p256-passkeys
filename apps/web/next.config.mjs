@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // expo-passkey and expo-passkey-liveness pull React Native types in
+  // expo-passkey pull React Native types in
   // some entry points. Transpiling them through Next.js keeps the
   // server bundle build happy. The /web entry points are pure JS
   // and don't touch any RN code at runtime.
@@ -8,7 +8,6 @@ const nextConfig = {
   // Next has to compile it rather than treat it as a built dependency.
   transpilePackages: [
     "expo-passkey",
-    "expo-passkey-liveness",
     "@tron-p256/wallet-core",
   ],
   webpack: (config) => {

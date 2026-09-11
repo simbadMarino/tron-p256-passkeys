@@ -1,8 +1,8 @@
 {
   "name": "tron-p256-passkey-app",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
-  "description": "Monorepo: Next.js + Expo example apps demonstrating expo-passkey and expo-passkey-liveness end-to-end.",
+  "description": "Monorepo: Next.js + Expo example apps demonstrating TRON P256VERIFY utilizing expo-passkey, end-to-end.",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -15,16 +15,21 @@
     "type-check": "npm run type-check --workspaces --if-present",
     "db:push": "npm run db:push --workspace=@tron-p256-passkey/web",
     "db:studio": "npm run db:studio --workspace=@tron-p256-passkey/web",
-    "postinstall": "patch-package"
+    "build:wallet-core:cjs": "tsc packages/wallet-core/src/index.ts --outDir packages/wallet-core/.cjs-build --module commonjs --target es2022 --moduleResolution node --skipLibCheck",
+    "test:contracts": "npm run build:wallet-core:cjs && cd tron_contracts && tronbox test --network development"
   },
   "engines": {
     "node": ">=20"
   },
   "license": "MIT",
+  "//overrides": "better-auth 1.7.x ships a @better-fetch/fetch whose generics are incompatible with expo-passkey@0.3.15's client plugin types (getActions is not assignable to BetterAuthClientPlugin). Held at the last known-good set until expo-passkey supports better-fetch >=1.3.",
+  "overrides": {
+    "better-auth": "1.6.11",
+    "@better-auth/expo": "1.6.11",
+    "@better-fetch/fetch": "1.1.21",
+    "better-call": "1.3.5"
+  },
   "dependencies": {
     "tronweb": "^6.5.0"
-  },
-  "devDependencies": {
-    "patch-package": "^8.0.1"
   }
 }

@@ -41,3 +41,7 @@ apps/mobile/.fingerprint.json
 .DS_Store
 .vscode
 .idea
+
+# CJS build of packages/wallet-core, produced by npm run build:wallet-core:cjs
+# so tronbox test (JavaScript only) can import the TypeScript digest.
+.cjs-build/
