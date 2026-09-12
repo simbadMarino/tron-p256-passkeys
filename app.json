@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "tron-p256-passkey-app",
+    "slug": "tron-p256-passkey-app",
+    "version": "0.0.2",
+    "description": "Monorepo: Next.js + Expo example apps demonstrating TRON P256VERIFY utilizing expo-passkey, end-to-end.",
+    "sdkVersion": "55.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  }
+}

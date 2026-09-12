@@ -6,10 +6,57 @@ End-to-end reference monorepo for TRON P256VERIFY + Passkeys
 | Workspace                     | What it is                      | Demonstrates                                                                                            |
 | ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | [`apps/web`](./apps/web)       | Next.js + Better Auth + Prisma  | Server config wiring both plugins, browser WebAuthn ceremonies, debug surface, deploys to Vercel        |
-| [`apps/mobile`](./apps/mobile) | Expo SDK 55 app (iOS + Android) | Native passkey ceremony, liveness-wrapper wiring, debug screen — built against the same (web) backend |
+| [`apps/mobile`](./apps/mobile) | Expo SDK 55 app (iOS + Android) | Native passkey ceremony, debug screen — built against the same (web) backend |
 
 
 ## Overview
+
+
+### Repo layout
+
+```
+tron-p256-passkeys/
+├── apps/
+│   ├── web/                # Next.js — server + browser, /p256 export page
+│   └── mobile/             # Expo SDK 55 — iOS + Android, Wallet tab
+├── packages/
+│   └── wallet-core/        # isomorphic P-256 / WebAuthn / TRON encoding,
+│                           # shared by both apps so operationDigest exists once
+├── tron_contracts/         # TronBox — P256SmartWallet, WebAuthn.sol, P256.sol
+├── package.json            # npm workspaces root (apps/*, packages/*)
+├── tsconfig.base.json
+└── README.md               # ← you are here
+```
+
+`packages/wallet-core` holds everything platform-free: the operation digest,
+DER signature parsing, base64url, base58check, and the ABI encoding for
+`execute`. Each app supplies only its own signing ceremony —
+`navigator.credentials.get()` on web, the Expo native module on device — so
+the digest that must match `P256SmartWallet.operationDigest` byte-for-byte is
+implemented in exactly one place.
+
+## What the apps demonstrate
+
+### `apps/web` — server + browser
+
+**From `expo-passkey`:**
+
+- Cross-platform passkey registration via WebAuthn (Touch ID, Windows
+  Hello, platform authenticator)
+- Sign-in via passkey assertion against the unified passkey table
+- Custom schema mapping (`authPasskey` → `passkey`,
+  `passkeyChallenge` → `passkeyChallenge`)
+- Serverless-friendly config (`cleanup.disableInterval`) for Vercel
+
+
+### `apps/mobile` — native ceremony wiring
+
+- Email OTP sign-in via `@better-auth/expo`, session
+  persisted in `expo-secure-store`
+- **Register passkey** - Register your passkey
+- **Sign in with passkey** — assertion ceremony
+- **Debug screen** — pulls `/api/debug/passkeys`from the backend so you can see the
+  rows the ceremony just created
 
 ### Project Features
 
@@ -44,6 +91,31 @@ Additionally you will need TRON Nile testnet accoun with test TRX, free to get a
 ---
 
 ## Getting Started
+
+### Scripts
+
+```bash
+# Web
+npm run dev:web                    # next dev
+npm run build:web                  # prisma generate && next build
+npm run db:push                    # prisma db push (apps/web)
+npm run db:studio                  # prisma studio (apps/web)
+
+# Mobile
+npm run dev:mobile                 # expo start
+npm run -w @tron-p256-passkey/mobile ios          # expo run:ios
+npm run -w @tron-p256-passkey/mobile android      # expo run:android
+npm run -w @tron-p256-passkey/mobile build:prod:ios       # eas build production iOS
+npm run -w @tron-p256-passkey/mobile build:prod:android   # eas build production Android
+
+# Contracts (from tron_contracts/, needs tronbox installed globally)
+tronbox compile
+tronbox deploy --network nile     # source .env first
+
+# Cross-cutting
+npm run type-check                 # tsc in every workspace
+npm run lint                       # eslint in every workspace
+```
 
 ### The web app
 
@@ -218,55 +290,6 @@ versus a full native rebuild.
 Native passkeys do **not** work in Expo Go — a development build is
 required.
 
----
-
-## Repo layout
-
-```
-tron-p256-passkeys/
-├── apps/
-│   ├── web/                # Next.js — server + browser, /p256 export page
-│   └── mobile/             # Expo SDK 55 — iOS + Android, Wallet tab
-├── packages/
-│   └── wallet-core/        # isomorphic P-256 / WebAuthn / TRON encoding,
-│                           # shared by both apps so operationDigest exists once
-├── tron_contracts/         # TronBox — P256SmartWallet, WebAuthn.sol, P256.sol
-├── package.json            # npm workspaces root (apps/*, packages/*)
-├── tsconfig.base.json
-└── README.md               # ← you are here
-```
-
-`packages/wallet-core` holds everything platform-free: the operation digest,
-DER signature parsing, base64url, base58check, and the ABI encoding for
-`execute`. Each app supplies only its own signing ceremony —
-`navigator.credentials.get()` on web, the Expo native module on device — so
-the digest that must match `P256SmartWallet.operationDigest` byte-for-byte is
-implemented in exactly one place.
-
-## What the apps demonstrate
-
-### `apps/web` — server + browser
-
-**From `expo-passkey`:**
-
-- Cross-platform passkey registration via WebAuthn (Touch ID, Windows
-  Hello, platform authenticator)
-- Sign-in via passkey assertion against the unified passkey table
-- Custom schema mapping (`authPasskey` → `passkey`,
-  `passkeyChallenge` → `passkeyChallenge`)
-- Serverless-friendly config (`cleanup.disableInterval`) for Vercel
-
-
-### `apps/mobile` — native ceremony wiring
-
-- Email OTP sign-in via `@better-auth/expo`, session
-  persisted in `expo-secure-store`
-- **Register passkey** - Register your passkey
-- **Sign in with passkey** — assertion ceremony
-- **Debug screen** — pulls `/api/debug/passkeys` and
-  `/api/debug/liveness-sessions` from the backend so you can see the
-  rows the ceremony just created
-
 
 ## Wiring the mobile app to the web backend
 
@@ -283,30 +306,7 @@ vars. The example handles all three:
    serves the digital asset link record when `MOBILE_ANDROID_PACKAGE` +
    `MOBILE_ANDROID_CERT_SHA256` are set.
 
-## Scripts
 
-```bash
-# Web
-npm run dev:web                    # next dev
-npm run build:web                  # prisma generate && next build
-npm run db:push                    # prisma db push (apps/web)
-npm run db:studio                  # prisma studio (apps/web)
-
-# Mobile
-npm run dev:mobile                 # expo start
-npm run -w @tron-p256-passkey/mobile ios          # expo run:ios
-npm run -w @tron-p256-passkey/mobile android      # expo run:android
-npm run -w @tron-p256-passkey/mobile build:prod:ios       # eas build production iOS
-npm run -w @tron-p256-passkey/mobile build:prod:android   # eas build production Android
-
-# Contracts (from tron_contracts/, needs tronbox installed globally)
-tronbox compile
-tronbox migrate --network nile     # source .env first
-
-# Cross-cutting
-npm run type-check                 # tsc in every workspace
-npm run lint                       # eslint in every workspace
-```
 
 
 ## Deploying
@@ -320,7 +320,6 @@ npm run lint                       # eslint in every workspace
 ## Related
 
 - [`expo-passkey`](https://github.com/iosazee/expo-passkey) — cross-platform passkey plugin
-- [`expo-passkey-liveness`](https://github.com/iosazee/expo-passkey-liveness) — liveness / PAD extension
 
 ## Glossary
 
@@ -328,7 +327,7 @@ npm run lint                       # eslint in every workspace
 
 ## Credits
 
-This repo is based on https://github.com/iosazee/tron-p256-passkey-app, thanks
+The expo passkeys ceremony portion of this demo was originally based from [iosazee/epk-example-app](https://github.com/iosazee/), kudos to iosazee for their hard work!
 
 ## License
 

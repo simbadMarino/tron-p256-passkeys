@@ -22,14 +22,6 @@ export default ({ config: _config }: ConfigContext): ExpoConfig => ({
     associatedDomains: [`webcredentials:${rpId}`, `applinks:${rpId}`],
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      // Uncomment together with the android.permission.CAMERA entry below and
-      // the expo-passkey-liveness plugin, once a real PAD provider
-      // (Rekognition / iProov) replaces the auto-passing demo one. Until then
-      // nothing opens a camera, and asking for access we never use is a
-      // permission neither a user nor an app reviewer can be given a reason for.
-      // Face ID does not need this — see NSFaceIDUsageDescription below.
-      // NSCameraUsageDescription:
-      //   "TRON P256 Passkeys uses the camera to verify your liveness during passkey registration and authentication.",
       NSFaceIDUsageDescription:
         "TRON P256 Passkeys uses Face ID so you can sign in with a passkey.",
     },

@@ -33,18 +33,14 @@ Open <http://localhost:3000> and click through:
 
 1. **Sign in with email OTP** from `/login` (Resend sends the code; in
    dev without a key the server logs it)
-2. **Register passkey + liveness** from `/dashboard` — Touch ID / Windows Hello + the
-   auto-passing demo liveness provider
-3. **Sign out, then sign in with passkey + liveness** — full assertion flow
-4. **Inspect debug routes** — confirm the liveness audit landed on the
-   passkey row and the liveness session row moved to `verified`
+2. **Register passkey** from `/dashboard` 
+3. **Sign out, then sign in with passkey** — full assertion flow
+4. **Inspect debug routes** — confirm server status, passkey sessions, auth type, OS version, etc.
 
-Inspect rows:
+Debug API:
 
-- <http://localhost:3000/api/debug/passkeys> — audit slice lives in
-  `metadata.liveness`
-- <http://localhost:3000/api/debug/liveness-sessions> — session rows
-  in `verified` / `failed` / `expired` states
+- <http://localhost:3000/api/debug/passkeys> — access debug information using this API endpoint
+
 
 ## Deploy to Vercel
 
@@ -80,7 +76,7 @@ apps/web/
 │   │   ├── apple-app-site-association/route.ts   ← iOS AASA
 │   │   └── assetlinks.json/route.ts              ← Android assetlinks
 │   ├── api/auth/[...all]/route.ts                ← Better Auth handler
-│   ├── api/debug/{passkeys,liveness-sessions}/route.ts
+│   ├── api/debug/passkeys/route.ts
 │   ├── dashboard/page.tsx                        ← register + inspect passkeys
 │   ├── layout.tsx
 │   ├── login/page.tsx                            ← email OTP + passkey login
@@ -88,7 +84,6 @@ apps/web/
 ├── lib/
 │   ├── auth.ts                                   ← server config — both plugins wired
 │   ├── auth-client.ts                            ← browser client
-│   ├── liveness-web.ts                           ← web-only verifyLiveness adapter
 │   ├── db.ts                                     ← Prisma singleton
 │   └── env.ts
 ├── prisma/schema.prisma
@@ -99,30 +94,6 @@ The interesting file is [`lib/auth.ts`](./lib/auth.ts) — it shows the
 two plugins side-by-side in a single `betterAuth()` call, with the
 trusted-origin list set up so both browser AND native ceremonies
 verify against the same backend.
-
-## Swapping in a real liveness provider
-
-The server is configured with `customProvider({ name: "demo", ... })`
-that auto-passes every check with `score: 95`. To plug in AWS
-Rekognition or iProov, swap the `provider:` value in `lib/auth.ts`:
-
-```ts
-import { rekognitionProvider } from "expo-passkey-liveness/server";
-
-provider: rekognitionProvider({
-  region: process.env.AWS_REGION!,
-}),
-```
-
-```ts
-import { iproovProvider } from "expo-passkey-liveness/server";
-
-provider: iproovProvider({
-  apiKey: process.env.IPROOV_API_KEY!,
-  secret: process.env.IPROOV_SECRET!,
-  baseUrl: "https://eu.rp.secure.iproov.me/api/v2",
-}),
-```
 
 ## License
 

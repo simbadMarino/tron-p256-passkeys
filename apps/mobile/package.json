@@ -1,6 +1,6 @@
 {
   "name": "@tron-p256-passkey/mobile",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Expo app demonstrating TRON P256VERIFY using expo-passkey against the apps/web backend.",
   "main": "index.ts",
